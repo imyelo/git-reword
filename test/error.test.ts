@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { GitRewordError, ErrorCode, handleError } from '../src/error'
+import { describe, expect, it } from 'vitest'
+import { ErrorCode, GitRewordError, handleError } from '../src/error'
 
 describe('error handling', () => {
   it('should export GitRewordError class', () => {

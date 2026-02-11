@@ -1,6 +1,6 @@
 import { default as simpleGit } from 'simple-git'
-import { BaseCommand } from './base'
 import { generateStagedMessage } from '../ai/generator'
+import { BaseCommand } from './base'
 
 export class StagedCommand extends BaseCommand {
   static summary = 'Generate commit message for staged changes'

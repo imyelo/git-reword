@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { formatPreview, formatResult, formatError } from '../src/output'
+import { describe, expect, it } from 'vitest'
+import { formatError, formatPreview, formatResult } from '../src/output'
 
 describe('output formatter', () => {
   it('should export formatPreview function', () => {

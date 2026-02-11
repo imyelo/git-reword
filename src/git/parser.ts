@@ -2,7 +2,9 @@ import type { Commit, RewordOptions } from '../types'
 
 export function parseCommit(logLine: string): Commit | null {
   const lines = logLine.trim().split('\n')
-  if (lines.length < 1 || !lines[0]) return null
+  if (lines.length < 1 || !lines[0]) {
+    return null
+  }
 
   const firstLine = lines[0].trim()
   // Check if first line has both hash and message
@@ -20,7 +22,10 @@ export function parseCommit(logLine: string): Commit | null {
     message = lines[1]?.trim() || ''
   }
 
-  const body = lines.slice(message ? 2 : 1).join('\n').trim()
+  const body = lines
+    .slice(message ? 2 : 1)
+    .join('\n')
+    .trim()
 
   return {
     hash,

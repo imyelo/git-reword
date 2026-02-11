@@ -1,7 +1,7 @@
-import { generateObject } from 'ai'
-import { openai } from '@ai-sdk/openai'
 import { anthropic } from '@ai-sdk/anthropic'
 import { google } from '@ai-sdk/google'
+import { openai } from '@ai-sdk/openai'
+import { generateObject } from 'ai'
 import type { Commit, Config } from '../types'
 
 const messageSchema = {
@@ -21,7 +21,7 @@ const messageSchema = {
 
 export async function generateCommitMessage(
   commit: Commit,
-  config: Config,
+  config: Config
 ): Promise<{ message: string; reasoning: string }> {
   const provider = getProvider(config)
 
@@ -52,7 +52,7 @@ Requirements:
 
 export async function generateStagedMessage(
   diff: string,
-  config: Config,
+  config: Config
 ): Promise<{ message: string; reasoning: string }> {
   const provider = getProvider(config)
 

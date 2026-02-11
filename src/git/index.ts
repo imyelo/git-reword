@@ -1,6 +1,6 @@
 import simpleGit from 'simple-git'
-import { parseCommits, getCommitRange } from './parser'
 import type { Commit, RewordOptions } from '../types'
+import { getCommitRange, parseCommits } from './parser'
 
 export async function getCommits(options: RewordOptions): Promise<Commit[]> {
   const range = getCommitRange(options)
@@ -13,10 +13,8 @@ export async function getCommits(options: RewordOptions): Promise<Commit[]> {
   return parseCommits(formatLogOutput(log))
 }
 
-function formatLogOutput(
-  log: { all: Array<{ hash: string; message: string; body: string }> },
-): string {
-  return log.all.map((c) => `${c.hash}\n${c.message}\n${c.body}`).join('\n\n')
+function formatLogOutput(log: { all: Array<{ hash: string; message: string; body: string }> }): string {
+  return log.all.map(c => `${c.hash}\n${c.message}\n${c.body}`).join('\n\n')
 }
 
 export async function checkUncommittedChanges(): Promise<boolean> {

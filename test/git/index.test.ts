@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { getCommits, checkUncommittedChanges, checkBranchContains } from '../../src/git'
+import { describe, expect, it } from 'vitest'
+import { checkBranchContains, checkUncommittedChanges, getCommits } from '../../src/git'
 
 describe('git operations', () => {
   it('should export getCommits function', () => {

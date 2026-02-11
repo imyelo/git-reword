@@ -1,8 +1,8 @@
 import { Flags } from '@oclif/core'
-import { BaseCommand } from './base'
-import { getCommits, checkUncommittedChanges } from '../git'
 import { generateCommitMessage } from '../ai/generator'
+import { checkUncommittedChanges, getCommits } from '../git'
 import { executeRewordRebase, type RewordResult } from '../rebase'
+import { BaseCommand } from './base'
 
 export class DefaultCommand extends BaseCommand {
   static summary = 'Reword the most recent commit'
@@ -65,9 +65,7 @@ export class DefaultCommand extends BaseCommand {
     }
 
     // Execute rebase
-    const results = await executeRewordRebase(
-      rewrites.map((r) => ({ hash: r.hash, newMessage: r.newMessage })),
-    )
+    const results = await executeRewordRebase(rewrites.map(r => ({ hash: r.hash, newMessage: r.newMessage })))
 
     // Report results
     let successCount = 0

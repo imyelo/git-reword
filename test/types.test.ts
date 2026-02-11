@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { Commit, RewordOptions, AiProvider } from '../src/types'
+import { describe, expect, it } from 'vitest'
+import type { AiProvider, Commit, RewordOptions } from '../src/types'
 
 describe('types', () => {
   it('should export RewordOptions interface', () => {

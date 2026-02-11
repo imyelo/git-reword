@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { validateRewordOperation, checkFastForward } from '../src/preflight'
+import { describe, expect, it } from 'vitest'
+import { checkFastForward, validateRewordOperation } from '../src/preflight'
 
 describe('preflight', () => {
   it('should export validateRewordOperation function', () => {

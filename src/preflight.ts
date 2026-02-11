@@ -6,9 +6,7 @@ export interface PreflightResult {
   errors: string[]
 }
 
-export async function validateRewordOperation(
-  options: RewordOptions,
-): Promise<PreflightResult> {
+export async function validateRewordOperation(options: RewordOptions): Promise<PreflightResult> {
   const errors: string[] = []
 
   // Check 1: No uncommitted changes

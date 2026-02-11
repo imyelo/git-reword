@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { loadConfig, getProviderConfig, Config } from '../src/config'
+import { describe, expect, it } from 'vitest'
+import { type Config, getProviderConfig, loadConfig } from '../src/config'
 
 describe('config', () => {
   it('should export loadConfig function', () => {

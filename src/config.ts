@@ -1,5 +1,5 @@
-import { z } from 'zod'
 import { loadConfig as loadC12 } from 'c12'
+import { z } from 'zod'
 
 const configSchema = z.object({
   provider: z.enum(['openai', 'anthropic', 'google']).optional(),
