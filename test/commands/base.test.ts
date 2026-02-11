@@ -1,0 +1,8 @@
+import { describe, it, expect } from 'vitest'
+import { BaseCommand } from '../../src/commands/base'
+
+describe('base command', () => {
+  it('should export BaseCommand class', () => {
+    expect(typeof BaseCommand).toBe('function')
+  })
+})
