@@ -1,0 +1,7 @@
+#!/usr/bin/env node
+import { execute } from '@oclif/core'
+
+await execute({
+  development: process.env.NODE_ENV === 'development',
+  version: process.env.VERSION || require('../package.json').version,
+})
