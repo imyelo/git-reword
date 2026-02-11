@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { parseCommit, parseCommits, getCommitRange, type Commit, type RewordOptions } from '../../src/git/parser'
+import { describe, expect, it } from 'vitest'
+import { type Commit, getCommitRange, parseCommit, parseCommits, type RewordOptions } from '../../src/git/parser'
 
 describe('git parser', () => {
   it('should export parseCommit function', () => {
@@ -15,7 +15,9 @@ describe('git parser', () => {
   })
 
   it('should parse a commit correctly', () => {
-    const commit: Commit = parseCommit('abc1234\nfix: bug\n')!
+    const commitResult = parseCommit('abc1234\nfix: bug\n')
+    expect(commitResult).not.toBeNull()
+    const commit: Commit = commitResult
     expect(commit.hash).toBe('abc1234')
     expect(commit.message).toBe('fix: bug')
     expect(commit.shortHash).toBe('abc1234')
