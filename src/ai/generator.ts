@@ -73,14 +73,36 @@ Requirements:
   return result.object
 }
 
+// Default models for each provider
+const DEFAULT_MODELS = {
+  anthropic: 'claude-sonnet-4-20250514',
+  google: 'gemini-2.0-flash-exp',
+  openai: 'gpt-4o',
+} as const
+
 function getProvider(config: Config) {
   switch (config.provider) {
     case 'anthropic':
-      return (model?: string) => anthropic({ model: model || 'claude-sonnet-4-20250514' })
+      return (model?: string) =>
+        anthropic({
+          model: model || DEFAULT_MODELS.anthropic,
+          apiKey: config.apiKey,
+          baseURL: config.baseUrl,
+        })
     case 'google':
-      return (model?: string) => google({ model: model || 'gemini-2.0-flash-exp' })
+      return (model?: string) =>
+        google({
+          model: model || DEFAULT_MODELS.google,
+          apiKey: config.apiKey,
+          baseURL: config.baseUrl,
+        })
     default:
-      return (model?: string) => openai({ model: model || 'gpt-4o' })
+      return (model?: string) =>
+        openai({
+          model: model || DEFAULT_MODELS.openai,
+          apiKey: config.apiKey,
+          baseURL: config.baseUrl,
+        })
   }
 }
 

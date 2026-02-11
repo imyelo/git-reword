@@ -25,6 +25,8 @@ git-reword --staged
 
 ```bash
 npm i -g git-reword
+# or
+bun add -g git-reword
 ```
 
 ## Configuration
@@ -39,6 +41,14 @@ Create `~/.config/git-reword/config.json`:
 }
 ```
 
+### Supported Providers
+
+| Provider | Default Model |
+|----------|---------------|
+| `openai` | `gpt-4o` |
+| `anthropic` | `claude-sonnet-4-20250514` |
+| `google` | `gemini-2.0-flash-exp` |
+
 ## Environment Variables
 
 | Variable | Description |
@@ -46,7 +56,21 @@ Create `~/.config/git-reword/config.json`:
 | `GIT_REWORD_PROVIDER` | AI provider |
 | `GIT_REWORD_MODEL` | Model name |
 | `GIT_REWORD_API_KEY` | API key |
-| `GIT_REWORD_BASE_URL` | Base URL for self-hosted |
+| `GIT_REWORD_BASE_URL` | Base URL for self-hosted models |
+
+## Examples
+
+```bash
+# Use Anthropic with specific model
+GIT_REWORD_PROVIDER=anthropic \
+GIT_REWORD_MODEL=claude-opus-4 \
+git-reword --last 2
+
+# Use OpenAI compatible API
+GIT_REWORD_BASE_URL="https://api.openai.com/v1" \
+GIT_REWORD_API_KEY="sk-..." \
+git-reword
+```
 
 ---
 

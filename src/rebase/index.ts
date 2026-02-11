@@ -8,61 +8,6 @@ export interface RewordResult {
   error?: string
 }
 
-export async function executeRewordReword(
-  commits: Array<{ hash: string; newMessage: string }>
-): Promise<RewordResult[]> {
-  const results: RewordResult[] = []
-
-  if (commits.length === 0) {
-    return results
-  }
-
-  const git = simpleGit()
-
-  try {
-    // For each commit, create a backup and use git filter-branch to rewrite
-    for (const commit of commits) {
-      // Get original message
-      const log = await git.log([commit.hash, '-1', '--format=%s%n%b'])
-      const originalMessage = log.all[0]?.body || log.all[0]?.subject || ''
-
-      // Use git commit-tree to create a new commit with the new message
-      // but same tree (this is a safe way to change just the message)
-      const tree = await git.raw(['rev-parse', `${commit.hash}^{tree}`])
-      const parent = await git.raw(['rev-parse', `${commit.hash}^`])
-      const timestamp = await git.raw(['log', '-1', '--format=%ct', commit.hash])
-      const author = await git.raw(['log', '-1', '--format=%an <%ae>', commit.hash])
-
-      // Create new commit with new message
-      const _newHash = await git.commitTree({
-        t: tree.trim(),
-        p: parent.trim(),
-        m: commit.newMessage,
-        d: new Date(parseInt(timestamp.trim(), 10) * 1000).toISOString(),
-        a: author.trim(),
-      })
-
-      results.push({
-        success: true,
-        commit: commit.hash,
-        originalMessage,
-        newMessage: commit.newMessage,
-      })
-    }
-
-    // Move branch pointers to new commits
-    // This is a simplified version - in production we'd need more robust handling
-  } catch (error) {
-    return results.map(r => ({
-      ...r,
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    }))
-  }
-
-  return results
-}
-
 export async function executeRewordRebase(
   commits: Array<{ hash: string; newMessage: string }>
 ): Promise<RewordResult[]> {
@@ -129,7 +74,7 @@ export async function executeRewordRebase(
     // Abort on any error
     await git.raw(['rebase', '--abort']).catch(() => {})
 
-    return results.map(r => ({
+    return results.map((r): RewordResult => ({
       ...r,
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
