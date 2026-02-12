@@ -47,7 +47,7 @@ export async function executeRewordRebase(
     }
 
     const rebaseTodo = commits
-      .map(c => `exec git commit --amend -F "${join(tempDir, `${c.hash}.msg`)}" --no-gpg-sign`)
+      .map(c => `exec git commit --amend -F "${join(tempDir, `${c.hash}.msg`)}" --no-verify`)
       .join('\n')
 
     const scriptPath = join(tempDir, 'rebase.sh')
@@ -59,7 +59,7 @@ export async function executeRewordRebase(
       '--keep-empty',
       '--no-autosquash',
       '--no-autostash',
-      '--no-gpg-sign',
+      '--no-verify',
       '--root',
       '-x',
       `bash "${scriptPath}"`,

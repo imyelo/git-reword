@@ -10,6 +10,7 @@ export async function createTempGitRepo(): Promise<string> {
   await execAsync('git init', { cwd: tempDir })
   await execAsync('git config user.email "test@example.com"', { cwd: tempDir })
   await execAsync('git config user.name "Test User"', { cwd: tempDir })
+  await execAsync('git config commit.gpgsign false', { cwd: tempDir })
   // Create initial commit
   await execAsync('echo "initial" > README.md', { cwd: tempDir })
   await execAsync('git add README.md', { cwd: tempDir })
