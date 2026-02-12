@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { checkBranchContains, checkUncommittedChanges, getCommits } from '../../src/git'
-import { createTempGitRepo, cleanupTempRepo } from '../helpers/git'
+import { cleanupTempRepo, createTempGitRepo } from '../helpers/git'
 
 describe('git operations', () => {
   describe('getCommits', () => {
@@ -13,8 +13,8 @@ describe('git operations', () => {
       try {
         const commits = await getCommits({}, tempDir)
         expect(commits.length).toBeGreaterThanOrEqual(1)
-        expect(commits[0]!.hash).toBeDefined()
-        expect(commits[0]!.message).toBe('initial commit')
+        expect(commits[0]?.hash).toBeDefined()
+        expect(commits[0]?.message).toBe('initial commit')
       } finally {
         await cleanupTempRepo(tempDir)
       }
@@ -26,15 +26,21 @@ describe('git operations', () => {
         const { exec } = await import('node:child_process')
         const { promisify } = await import('node:util')
         const execAsync = promisify(exec)
-        await execAsync('echo "feat1" >> file.txt && git add file.txt && git commit -m "feat: feature 1"', { cwd: tempDir })
-        await execAsync('echo "feat2" >> file.txt && git add file.txt && git commit -m "feat: feature 2"', { cwd: tempDir })
-        await execAsync('echo "feat3" >> file.txt && git add file.txt && git commit -m "feat: feature 3"', { cwd: tempDir })
+        await execAsync('echo "feat1" >> file.txt && git add file.txt && git commit -m "feat: feature 1"', {
+          cwd: tempDir,
+        })
+        await execAsync('echo "feat2" >> file.txt && git add file.txt && git commit -m "feat: feature 2"', {
+          cwd: tempDir,
+        })
+        await execAsync('echo "feat3" >> file.txt && git add file.txt && git commit -m "feat: feature 3"', {
+          cwd: tempDir,
+        })
 
         const commits = await getCommits({ last: 2 }, tempDir)
         expect(commits).toHaveLength(2)
         // Most recent first
-        expect(commits[0]!.message).toBe('feat: feature 3')
-        expect(commits[1]!.message).toBe('feat: feature 2')
+        expect(commits[0]?.message).toBe('feat: feature 3')
+        expect(commits[1]?.message).toBe('feat: feature 2')
       } finally {
         await cleanupTempRepo(tempDir)
       }
@@ -46,13 +52,17 @@ describe('git operations', () => {
         const { exec } = await import('node:child_process')
         const { promisify } = await import('node:util')
         const execAsync = promisify(exec)
-        await execAsync('echo "feat1" >> file.txt && git add file.txt && git commit -m "feat: feature 1"', { cwd: tempDir })
+        await execAsync('echo "feat1" >> file.txt && git add file.txt && git commit -m "feat: feature 1"', {
+          cwd: tempDir,
+        })
         const sinceHash = (await execAsync('git rev-parse HEAD', { cwd: tempDir })).stdout.trim()
-        await execAsync('echo "feat2" >> file.txt && git add file.txt && git commit -m "feat: feature 2"', { cwd: tempDir })
+        await execAsync('echo "feat2" >> file.txt && git add file.txt && git commit -m "feat: feature 2"', {
+          cwd: tempDir,
+        })
 
         const commits = await getCommits({ since: sinceHash }, tempDir)
         expect(commits.length).toBeGreaterThanOrEqual(1)
-        expect(commits[commits.length - 1]!.message).toBe('feat: feature 2')
+        expect(commits[commits.length - 1]?.message).toBe('feat: feature 2')
       } finally {
         await cleanupTempRepo(tempDir)
       }
@@ -64,14 +74,18 @@ describe('git operations', () => {
         const { exec } = await import('node:child_process')
         const { promisify } = await import('node:util')
         const execAsync = promisify(exec)
-        await execAsync('echo "feat1" >> file.txt && git add file.txt && git commit -m "feat: feature 1"', { cwd: tempDir })
-        await execAsync('echo "feat2" >> file.txt && git add file.txt && git commit -m "feat: feature 2"', { cwd: tempDir })
+        await execAsync('echo "feat1" >> file.txt && git add file.txt && git commit -m "feat: feature 1"', {
+          cwd: tempDir,
+        })
+        await execAsync('echo "feat2" >> file.txt && git add file.txt && git commit -m "feat: feature 2"', {
+          cwd: tempDir,
+        })
         const hash1 = (await execAsync('git rev-parse HEAD~1', { cwd: tempDir })).stdout.trim()
         const hash2 = (await execAsync('git rev-parse HEAD', { cwd: tempDir })).stdout.trim()
 
         const commits = await getCommits({ range: `${hash1}..${hash2}` }, tempDir)
         expect(commits).toHaveLength(1)
-        expect(commits[0]!.message).toBe('feat: feature 2')
+        expect(commits[0]?.message).toBe('feat: feature 2')
       } finally {
         await cleanupTempRepo(tempDir)
       }

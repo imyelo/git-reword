@@ -4,7 +4,7 @@ import type { SimpleGit } from 'simple-git'
 // simple-git is CJS-first, so we need careful handling for ESM
 
 let _cachedGit: SimpleGit | null = null
-let _cachedCwd: string | null = null
+const _cachedCwd: string | null = null
 
 export async function getSimpleGit(cwd?: string): Promise<SimpleGit> {
   // Always create a new instance when cwd is explicitly provided
@@ -32,9 +32,13 @@ interface LogEntry {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getLogEntryField(entry: Record<string, unknown>, field: string): string {
   const value = entry[field]
-  if (typeof value === 'string') return value
+  if (typeof value === 'string') {
+    return value
+  }
   // simple-git uses 'message' instead of 'subject'
-  if (field === 'subject' && typeof entry.message === 'string') return entry.message
+  if (field === 'subject' && typeof entry.message === 'string') {
+    return entry.message
+  }
   return ''
 }
 
