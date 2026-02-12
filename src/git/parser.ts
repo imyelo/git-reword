@@ -1,5 +1,7 @@
 import type { Commit, RewordOptions } from '../types.js'
 
+export type { Commit, RewordOptions }
+
 export function parseCommit(logLine: string): Commit | null {
   const lines = logLine.trim().split('\n')
   if (lines.length < 1 || !lines[0]) {

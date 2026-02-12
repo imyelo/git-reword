@@ -1,10 +1,10 @@
 {
-  "extends": "./tsconfig.json",
+  "extends": "@yelo/tsconfig",
   "compilerOptions": {
     "declaration": true,
     "noEmit": false,
-    "outDir": "./lib",
-    "rootDir": "./src"
+    "outDir": "lib/cli",
+    "rootDir": "src"
   },
   "include": ["src"]
 }

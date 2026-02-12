@@ -19,17 +19,17 @@
   "oclif": {
     "bin": "git-reword",
     "dirname": "git-reword",
-    "commands": "./lib/commands",
+    "commands": "./lib/cli/commands",
     "plugins": []
   },
   "scripts": {
     "dev": "./bin/run",
     "clean": "rimraf ./lib",
     "prebuild": "npm run clean",
-    "build": "tsc -p ./tsconfig.cli.json && node ./bin/copy-assets",
+    "build": "npm run clean && npm run build:cli && npm run build:esm && npm run build:types",
+    "build:cli": "tsc -p ./tsconfig.cli.json && node ./bin/copy-assets",
     "build:esm": "tsc -p ./tsconfig.esm.json",
     "build:types": "tsc -p ./tsconfig.json --declaration --emitDeclarationOnly",
-    "build:all": "yarn build:cli && yarn build:esm && yarn build:types",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "lint": "biome check .",
