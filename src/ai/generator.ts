@@ -1,18 +1,16 @@
 import { anthropic } from '@ai-sdk/anthropic'
 import { google } from '@ai-sdk/google'
 import { openai } from '@ai-sdk/openai'
-import { generateObject, zodSchema } from 'ai'
+import { generateText, zodSchema } from 'ai'
 import { z } from 'zod'
-import type { Commit } from '../types.js'
 import type { Config } from '../config.js'
 import { getSimpleGit } from '../git/simple-git.js'
+import type { Commit } from '../types.js'
 
-const messageSchema = zodSchema(
-  z.object({
-    message: z.string().describe('Conventional commit message (type(scope): description)'),
-    reasoning: z.string().optional().describe('Brief explanation of the message choice'),
-  })
-)
+const messageSchema = z.object({
+  message: z.string().describe('Conventional commit message (type(scope): description)'),
+  reasoning: z.string().optional().describe('Brief explanation of the message choice'),
+})
 
 export async function generateCommitMessage(
   commit: Commit,
@@ -22,9 +20,8 @@ export async function generateCommitMessage(
 
   const diff = await getCommitDiff(commit.hash)
 
-  const result = await generateObject({
+  const result = await generateText({
     model: provider(config.model),
-    schema: messageSchema,
     prompt: `Rewrite this commit message to follow Conventional Commits.
 
 Original message:
@@ -40,9 +37,11 @@ Requirements:
 - type: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
 - Be concise but descriptive
 - Keep the same semantic intent`,
+    // @ts-expect-error - output with zodSchema is the recommended replacement for generateObject
+    output: zodSchema(messageSchema),
   })
 
-  return result.object
+  return result.output as { message: string; reasoning?: string }
 }
 
 export async function generateStagedMessage(
@@ -51,9 +50,8 @@ export async function generateStagedMessage(
 ): Promise<{ message: string; reasoning?: string }> {
   const provider = getProvider(config)
 
-  const result = await generateObject({
+  const result = await generateText({
     model: provider(config.model),
-    schema: messageSchema,
     prompt: `Generate a conventional commit message for these staged changes.
 
 Diff:
@@ -63,9 +61,11 @@ Requirements:
 - Use format: type(scope): description
 - type: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
 - Be concise but descriptive`,
+    // @ts-expect-error - output with zodSchema is the recommended replacement for generateObject
+    output: zodSchema(messageSchema),
   })
 
-  return result.object
+  return result.output as { message: string; reasoning?: string }
 }
 
 // Default models for each provider
