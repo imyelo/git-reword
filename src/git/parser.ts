@@ -1,4 +1,4 @@
-import type { Commit, RewordOptions } from '../types'
+import type { Commit, RewordOptions } from '../types.js'
 
 export function parseCommit(logLine: string): Commit | null {
   const lines = logLine.trim().split('\n')

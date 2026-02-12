@@ -1,5 +1,5 @@
-import simpleGit from 'simple-git'
-import type { RewordOptions } from './types'
+import type { RewordOptions } from './types.js'
+import { getSimpleGit, checkMergeBase } from './git/simple-git.js'
 
 export interface PreflightResult {
   valid: boolean
@@ -8,9 +8,9 @@ export interface PreflightResult {
 
 export async function validateRewordOperation(options: RewordOptions): Promise<PreflightResult> {
   const errors: string[] = []
+  const git = await getSimpleGit()
 
   // Check 1: No uncommitted changes
-  const git = simpleGit()
   const status = await git.status()
 
   if (status.files.length > 0) {
@@ -29,28 +29,24 @@ export async function validateRewordOperation(options: RewordOptions): Promise<P
 }
 
 export async function checkFastForward(options: RewordOptions): Promise<boolean> {
-  const git = simpleGit()
+  const git = await getSimpleGit()
 
   if (options.last) {
     const base = `HEAD~${options.last}`
-    const isAncestor = await git.raw(['merge-base', '--is-ancestor', base, 'HEAD'])
-    return isAncestor.exitCode === 0
+    return await checkMergeBase(git, base)
   }
 
   if (options.since) {
-    const isAncestor = await git.raw(['merge-base', '--is-ancestor', options.since, 'HEAD'])
-    return isAncestor.exitCode === 0
+    return await checkMergeBase(git, options.since)
   }
 
   if (options.range) {
     const [from] = options.range.split('..')
-    const isAncestor = await git.raw(['merge-base', '--is-ancestor', from, 'HEAD'])
-    return isAncestor.exitCode === 0
+    return await checkMergeBase(git, from)
   }
 
   if (options.commit) {
-    const isAncestor = await git.raw(['merge-base', '--is-ancestor', options.commit, 'HEAD'])
-    return isAncestor.exitCode === 0
+    return await checkMergeBase(git, options.commit)
   }
 
   // Default: just HEAD

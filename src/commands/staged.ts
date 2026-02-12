@@ -1,6 +1,20 @@
-import { default as simpleGit } from 'simple-git'
-import { generateStagedMessage } from '../ai/generator'
-import { BaseCommand } from './base'
+import { createInterface } from 'node:readline'
+import { generateStagedMessage } from '../ai/generator.js'
+import { BaseCommand } from './base.js'
+import { getSimpleGit } from '../git/simple-git.js'
+
+async function confirm(prompt: string): Promise<boolean> {
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  })
+  return new Promise((resolve) => {
+    rl.question(prompt, (answer) => {
+      rl.close()
+      resolve(answer.toLowerCase().startsWith('y'))
+    })
+  })
+}
 
 export class StagedCommand extends BaseCommand {
   static summary = 'Generate commit message for staged changes'
@@ -8,8 +22,8 @@ export class StagedCommand extends BaseCommand {
   async run() {
     const { flags } = await this.parse(StagedCommand)
     const config = await this.loadConfig()
+    const git = await getSimpleGit()
 
-    const git = simpleGit()
     const status = await git.status()
 
     if (status.staged.length === 0) {
@@ -25,8 +39,8 @@ export class StagedCommand extends BaseCommand {
     this.log(`\n`)
 
     if (!flags.yes) {
-      const apply = await this.confirm('Apply this commit? [y/n]')
-      if (apply) {
+      const response = await confirm('Apply this commit? [y/n] ')
+      if (response) {
         await git.commit(generated.message)
         this.log('Committed!')
       } else {

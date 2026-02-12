@@ -1,4 +1,4 @@
-import simpleGit from 'simple-git'
+import { getSimpleGit, getGitLog } from '../git/simple-git.js'
 
 export interface RewordResult {
   success: boolean
@@ -17,7 +17,7 @@ export async function executeRewordRebase(
     return results
   }
 
-  const git = simpleGit()
+  const git = await getSimpleGit()
   const firstCommit = commits[0]
   if (!firstCommit) {
     return results
@@ -27,11 +27,12 @@ export async function executeRewordRebase(
   try {
     // Get original messages before rebase
     for (const commit of commits) {
-      const log = await git.log([commit.hash, '-1', '--format=%s%n%b'])
+      const entries = await getGitLog(git, `${commit.hash}^..${commit.hash}`)
+      const entry = entries[0]
       results.push({
         success: true,
         commit: commit.hash,
-        originalMessage: log.all[0]?.body || log.all[0]?.subject || '',
+        originalMessage: entry?.body || entry?.subject || '',
         newMessage: commit.newMessage,
       })
     }
@@ -39,12 +40,12 @@ export async function executeRewordRebase(
     // Build the rebase todo list
     // We need to create a script that will amend each commit with its new message
     const rebaseScript = commits
-      .map(c => `exec git commit --amend -m "${escapeMessage(c.newMessage)}" --no-gpg-sign`)
+      .map((c) => `exec git commit --amend -m "${escapeMessage(c.newMessage)}" --no-gpg-sign`)
       .join('\n')
 
     // Create a temporary script file
     const scriptPath = `/tmp/rebase-${Date.now()}.sh`
-    await import('node:fs').then(fs => {
+    await import('node:fs').then((fs) => {
       fs.writeFileSync(scriptPath, `#!/bin/bash\n${rebaseScript}`)
     })
 
@@ -63,7 +64,7 @@ export async function executeRewordRebase(
     ])
 
     // Clean up
-    await import('node:fs').then(fs => {
+    await import('node:fs').then((fs) => {
       try {
         fs.unlinkSync(scriptPath)
       } catch {

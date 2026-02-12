@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
-import { dirname, join } from 'node:path'
 
 // Ensure bin directory exists
 if (!existsSync('bin')) {
@@ -16,4 +15,4 @@ if (existsSync(manifestPath)) {
 // Ensure bin/run is executable
 import { chmodSync } from 'node:fs'
 
-chmodSync('bin/run', '0o755')
+chmodSync('bin/run', 0o755)

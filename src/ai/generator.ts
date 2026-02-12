@@ -1,28 +1,23 @@
 import { anthropic } from '@ai-sdk/anthropic'
 import { google } from '@ai-sdk/google'
 import { openai } from '@ai-sdk/openai'
-import { generateObject } from 'ai'
-import type { Commit, Config } from '../types'
+import { generateObject, zodSchema } from 'ai'
+import { z } from 'zod'
+import type { Commit } from '../types.js'
+import type { Config } from '../config.js'
+import { getSimpleGit } from '../git/simple-git.js'
 
-const messageSchema = {
-  type: 'object' as const,
-  properties: {
-    message: {
-      type: 'string' as const,
-      description: 'Conventional commit message (type(scope): description)',
-    },
-    reasoning: {
-      type: 'string' as const,
-      description: 'Brief explanation of the message choice',
-    },
-  },
-  required: ['message'],
-}
+const messageSchema = zodSchema(
+  z.object({
+    message: z.string().describe('Conventional commit message (type(scope): description)'),
+    reasoning: z.string().optional().describe('Brief explanation of the message choice'),
+  })
+)
 
 export async function generateCommitMessage(
   commit: Commit,
   config: Config
-): Promise<{ message: string; reasoning: string }> {
+): Promise<{ message: string; reasoning?: string }> {
   const provider = getProvider(config)
 
   const diff = await getCommitDiff(commit.hash)
@@ -53,7 +48,7 @@ Requirements:
 export async function generateStagedMessage(
   diff: string,
   config: Config
-): Promise<{ message: string; reasoning: string }> {
+): Promise<{ message: string; reasoning?: string }> {
   const provider = getProvider(config)
 
   const result = await generateObject({
@@ -80,36 +75,47 @@ const DEFAULT_MODELS = {
   openai: 'gpt-4o',
 } as const
 
-function getProvider(config: Config) {
+// Provider model function type
+type ProviderModel = (model?: string) => ReturnType<typeof anthropic>
+
+function getProvider(config: Config): ProviderModel {
+  const baseOptions = {
+    apiKey: config.apiKey,
+    baseURL: config.baseUrl,
+  }
+
   switch (config.provider) {
-    case 'anthropic':
+    case 'anthropic': {
+      const modelId = DEFAULT_MODELS.anthropic
       return (model?: string) =>
         anthropic({
-          model: model || DEFAULT_MODELS.anthropic,
-          apiKey: config.apiKey,
-          baseURL: config.baseUrl,
-        })
-    case 'google':
+          model: model || modelId,
+          ...baseOptions,
+        } as unknown as Parameters<typeof anthropic>[0])
+    }
+    case 'google': {
+      const modelId = DEFAULT_MODELS.google
       return (model?: string) =>
         google({
-          model: model || DEFAULT_MODELS.google,
-          apiKey: config.apiKey,
-          baseURL: config.baseUrl,
-        })
-    default:
+          model: model || modelId,
+          ...baseOptions,
+        } as unknown as Parameters<typeof google>[0])
+    }
+    default: {
+      const modelId = DEFAULT_MODELS.openai
       return (model?: string) =>
         openai({
-          model: model || DEFAULT_MODELS.openai,
-          apiKey: config.apiKey,
-          baseURL: config.baseUrl,
-        })
+          model: model || modelId,
+          ...baseOptions,
+        } as unknown as Parameters<typeof openai>[0])
+    }
   }
 }
 
 async function getCommitDiff(hash: string): Promise<string> {
-  const { default: simpleGit } = await import('simple-git')
+  const git = await getSimpleGit()
   try {
-    const diff = await simpleGit().show([`${hash}^..${hash}`, '--stat', '-p'])
+    const diff = await git.show([`${hash}^..${hash}`, '--stat', '-p'])
     return diff
   } catch {
     return ''

@@ -1,5 +1,5 @@
 import { Args, Command, Flags } from '@oclif/core'
-import { loadConfig } from '../config'
+import { loadConfig } from '../config.js'
 
 export abstract class BaseCommand extends Command {
   static flags = {

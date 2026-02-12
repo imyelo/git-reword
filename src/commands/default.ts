@@ -1,8 +1,22 @@
 import { Flags } from '@oclif/core'
-import { generateCommitMessage } from '../ai/generator'
-import { checkUncommittedChanges, getCommits } from '../git'
-import { executeRewordRebase, type RewordResult } from '../rebase'
-import { BaseCommand } from './base'
+import { createInterface } from 'node:readline'
+import { generateCommitMessage } from '../ai/generator.js'
+import { checkUncommittedChanges, getCommits } from '../git/index.js'
+import { executeRewordRebase, type RewordResult } from '../rebase/index.js'
+import { BaseCommand } from './base.js'
+
+async function confirm(prompt: string): Promise<boolean> {
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  })
+  return new Promise((resolve) => {
+    rl.question(prompt, (answer) => {
+      rl.close()
+      resolve(answer.toLowerCase().startsWith('y'))
+    })
+  })
+}
 
 export class DefaultCommand extends BaseCommand {
   static summary = 'Reword the most recent commit'
@@ -57,7 +71,7 @@ export class DefaultCommand extends BaseCommand {
       for (const r of rewrites) {
         this.log(`  ${r.hash.substring(0, 7)}: ${r.originalMessage} -> ${r.newMessage}`)
       }
-      const proceed = await this.confirm('\nApply these changes? [y/n]')
+      const proceed = await confirm('\nApply these changes? [y/n] ')
       if (!proceed) {
         this.log('Aborted.')
         return

@@ -1,4 +1,4 @@
-import type { RewordResult } from './rebase'
+import type { RewordResult } from './rebase/index.js'
 
 export interface PreviewItem {
   commit: string

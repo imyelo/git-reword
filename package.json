@@ -23,7 +23,7 @@
     "plugins": []
   },
   "scripts": {
-    "dev": "node --loader ts-node/esm ./src/index.ts",
+    "dev": "./bin/run",
     "clean": "rimraf ./lib",
     "prebuild": "npm run clean",
     "build": "tsc -p ./tsconfig.cli.json && node ./bin/copy-assets",
