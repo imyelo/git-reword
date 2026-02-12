@@ -1,15 +1,15 @@
 import { createInterface } from 'node:readline'
 import { generateStagedMessage } from '../ai/generator.js'
-import { BaseCommand } from './base.js'
 import { getSimpleGit } from '../git/simple-git.js'
+import { BaseCommand } from './base.js'
 
 async function confirm(prompt: string): Promise<boolean> {
   const rl = createInterface({
     input: process.stdin,
     output: process.stdout,
   })
-  return new Promise((resolve) => {
-    rl.question(prompt, (answer) => {
+  return new Promise(resolve => {
+    rl.question(prompt, answer => {
       rl.close()
       resolve(answer.toLowerCase().startsWith('y'))
     })

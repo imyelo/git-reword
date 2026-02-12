@@ -1,5 +1,5 @@
+import { checkMergeBase, getSimpleGit } from './git/simple-git.js'
 import type { RewordOptions } from './types.js'
-import { getSimpleGit, checkMergeBase } from './git/simple-git.js'
 
 export interface PreflightResult {
   valid: boolean

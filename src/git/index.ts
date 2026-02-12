@@ -1,6 +1,6 @@
 import type { Commit, RewordOptions } from '../types.js'
 import { getCommitRange, parseCommits } from './parser.js'
-import { getSimpleGit, getGitLog } from './simple-git.js'
+import { getGitLog, getSimpleGit } from './simple-git.js'
 
 export async function getCommits(options: RewordOptions): Promise<Commit[]> {
   const range = getCommitRange(options)
@@ -16,7 +16,7 @@ export async function getCommits(options: RewordOptions): Promise<Commit[]> {
 }
 
 function formatLogOutput(entries: Array<{ hash: string; subject: string; body: string }>): string {
-  return entries.map((e) => `${e.hash}\n${e.subject}\n${e.body}`).join('\n\n')
+  return entries.map(e => `${e.hash}\n${e.subject}\n${e.body}`).join('\n\n')
 }
 
 export async function checkUncommittedChanges(): Promise<boolean> {

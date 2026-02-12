@@ -24,8 +24,9 @@ interface LogEntry {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getLogEntryField(entry: any, field: string): string {
-  return entry[field as keyof typeof entry] ?? ''
+function getLogEntryField(entry: Record<string, unknown>, field: string): string {
+  const value = entry[field]
+  return typeof value === 'string' ? value : ''
 }
 
 export async function getGitLog(git: SimpleGit, range: string): Promise<LogEntry[]> {
@@ -45,11 +46,6 @@ interface GitRawResult {
 }
 
 export async function checkMergeBase(git: SimpleGit, commit: string): Promise<boolean> {
-  const result = (await git.raw([
-    'merge-base',
-    '--is-ancestor',
-    commit,
-    'HEAD',
-  ])) as unknown as GitRawResult
+  const result = (await git.raw(['merge-base', '--is-ancestor', commit, 'HEAD'])) as unknown as GitRawResult
   return result.exitCode === 0
 }

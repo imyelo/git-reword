@@ -1,5 +1,5 @@
-import { Flags } from '@oclif/core'
 import { createInterface } from 'node:readline'
+import { Flags } from '@oclif/core'
 import { generateCommitMessage } from '../ai/generator.js'
 import { checkUncommittedChanges, getCommits } from '../git/index.js'
 import { executeRewordRebase, type RewordResult } from '../rebase/index.js'
@@ -10,8 +10,8 @@ async function confirm(prompt: string): Promise<boolean> {
     input: process.stdin,
     output: process.stdout,
   })
-  return new Promise((resolve) => {
-    rl.question(prompt, (answer) => {
+  return new Promise(resolve => {
+    rl.question(prompt, answer => {
       rl.close()
       resolve(answer.toLowerCase().startsWith('y'))
     })
