@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { DefaultCommand } from '../../src/commands/default'
+import MainCommand from '../../src/commands/default'
 
 describe('default command', () => {
-  it('should export DefaultCommand class', () => {
-    expect(typeof DefaultCommand).toBe('function')
+  it('should export MainCommand class', () => {
+    expect(typeof MainCommand).toBe('function')
   })
 })

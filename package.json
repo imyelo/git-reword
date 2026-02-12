@@ -20,6 +20,7 @@
     "bin": "git-reword",
     "dirname": "git-reword",
     "commands": "./lib/cli/commands",
+    "default": "./lib/cli/commands/default.js",
     "plugins": []
   },
   "scripts": {
