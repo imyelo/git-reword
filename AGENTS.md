@@ -11,7 +11,7 @@ This is a Node.js/TypeScript ESM library project. Source code lives in `src/` an
 ```bash
 # Development
 yarn dev          # Run source with ts-node loader
-yarn test         # Run AVA tests
+yarn test         # Run Vitest tests
 yarn build        # Compile to lib/esm/ + lib/types/
 yarn clean        # Remove lib/ directory
 
@@ -29,6 +29,6 @@ yarn release      # Publish with np
 
 - **Entry point**: `src/index.ts` (exports defined in package.json `exports`)
 - **Build output**: `lib/esm/` (JS) + `lib/types/` (TypeScript declarations)
-- **Tests**: AVA with ts-node/esm loader, located in `test/**/*`
+- **Tests**: Vitest, located in `test/**/*`
 - **Linting**: Biome (extends @yelo/biome-config)
 - **TypeScript**: Extends @yelo/tsconfig, Node >= 22 required

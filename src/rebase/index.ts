@@ -1,4 +1,8 @@
 import { getGitLog, getSimpleGit } from '../git/simple-git.js'
+import { randomUUID } from 'node:crypto'
+import { mkdirSync, writeFileSync, rmdirSync } from 'node:fs'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 
 export interface RewordResult {
   success: boolean
@@ -24,6 +28,10 @@ export async function executeRewordRebase(
   }
   const base = `${firstCommit.hash}^`
 
+  // Create a temporary directory for message files (secure, no /tmp symlink attacks)
+  const tempDir = join(tmpdir(), `git-reword-${randomUUID()}`)
+  mkdirSync(tempDir, { mode: 0o700 })
+
   try {
     // Get original messages before rebase
     for (const commit of commits) {
@@ -35,19 +43,21 @@ export async function executeRewordRebase(
         originalMessage: entry?.body || entry?.subject || '',
         newMessage: commit.newMessage,
       })
+
+      // Write each message to its own file (no shell interpolation possible)
+      const msgFile = join(tempDir, `${commit.hash}.msg`)
+      writeFileSync(msgFile, commit.newMessage, { mode: 0o600 })
     }
 
     // Build the rebase todo list
-    // We need to create a script that will amend each commit with its new message
-    const rebaseScript = commits
-      .map(c => `exec git commit --amend -m "${escapeMessage(c.newMessage)}" --no-gpg-sign`)
+    // Each exec command reads the message from a file (no shell injection possible)
+    const rebaseTodo = commits
+      .map(c => `exec git commit --amend -F "${join(tempDir, `${c.hash}.msg`)}" --no-gpg-sign`)
       .join('\n')
 
-    // Create a temporary script file
-    const scriptPath = `/tmp/rebase-${Date.now()}.sh`
-    await import('node:fs').then(fs => {
-      fs.writeFileSync(scriptPath, `#!/bin/bash\n${rebaseScript}`)
-    })
+    // Write the rebase script
+    const scriptPath = join(tempDir, 'rebase.sh')
+    writeFileSync(scriptPath, `#!/bin/bash\n${rebaseTodo}`, { mode: 0o600 })
 
     // Start interactive rebase with the script
     await git.raw([
@@ -59,18 +69,9 @@ export async function executeRewordRebase(
       '--no-gpg-sign',
       '--root',
       '-x',
-      `bash ${scriptPath}`,
+      `bash "${scriptPath}"`,
       base,
     ])
-
-    // Clean up
-    await import('node:fs').then(fs => {
-      try {
-        fs.unlinkSync(scriptPath)
-      } catch {
-        // Ignore
-      }
-    })
   } catch (error) {
     // Abort on any error
     await git.raw(['rebase', '--abort']).catch(() => {})
@@ -82,11 +83,14 @@ export async function executeRewordRebase(
         error: error instanceof Error ? error.message : 'Unknown error',
       })
     )
+  } finally {
+    // Clean up temp directory
+    try {
+      rmdirSync(tempDir, { recursive: true })
+    } catch {
+      // Ignore cleanup errors
+    }
   }
 
   return results
-}
-
-function escapeMessage(msg: string): string {
-  return msg.replace(/"/g, '\\"').replace(/\n/g, '\\n')
 }

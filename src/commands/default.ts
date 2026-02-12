@@ -1,22 +1,9 @@
-import { createInterface } from 'node:readline'
 import { Flags } from '@oclif/core'
 import { generateCommitMessage } from '../ai/generator.js'
 import { checkUncommittedChanges, getCommits } from '../git/index.js'
 import { executeRewordRebase, type RewordResult } from '../rebase/index.js'
+import { confirm } from '../ui.js'
 import { BaseCommand } from './base.js'
-
-async function confirm(prompt: string): Promise<boolean> {
-  const rl = createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  })
-  return new Promise(resolve => {
-    rl.question(prompt, answer => {
-      rl.close()
-      resolve(answer.toLowerCase().startsWith('y'))
-    })
-  })
-}
 
 export class DefaultCommand extends BaseCommand {
   static summary = 'Reword the most recent commit'
