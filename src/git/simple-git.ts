@@ -47,8 +47,8 @@ export async function getGitLog(git: SimpleGit, range: string): Promise<LogEntry
   return result.all.map(
     (entry): LogEntry => ({
       hash: entry.hash,
-      subject: getLogEntryField(entry, 'subject'),
-      body: getLogEntryField(entry, 'body'),
+      subject: getLogEntryField(entry as unknown as Record<string, unknown>, 'subject'),
+      body: getLogEntryField(entry as unknown as Record<string, unknown>, 'body'),
     })
   )
 }

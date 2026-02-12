@@ -1,7 +1,7 @@
 import { anthropic } from '@ai-sdk/anthropic'
 import { google } from '@ai-sdk/google'
 import { openai } from '@ai-sdk/openai'
-import { generateText, Output } from 'ai'
+import { generateText } from 'ai'
 import { z } from 'zod'
 import type { Config } from '../config.js'
 import { getSimpleGit } from '../git/simple-git.js'
@@ -23,10 +23,11 @@ export async function generateCommitMessage(
   const result = await generateText({
     model: provider(config.model),
     prompt: PROMPTS.rewrite(commit.message, commit.body, diff),
-    output: Output.object({ schema: messageSchema }),
   })
 
-  return result.output as { message: string; reasoning?: string }
+  // Parse the structured output from text response
+  const parsed = messageSchema.parse(JSON.parse(result.text))
+  return { message: parsed.message, reasoning: parsed.reasoning }
 }
 
 export async function generateStagedMessage(
@@ -38,10 +39,11 @@ export async function generateStagedMessage(
   const result = await generateText({
     model: provider(config.model),
     prompt: PROMPTS.staged(diff),
-    output: Output.object({ schema: messageSchema }),
   })
 
-  return result.output as { message: string; reasoning?: string }
+  // Parse the structured output from text response
+  const parsed = messageSchema.parse(JSON.parse(result.text))
+  return { message: parsed.message, reasoning: parsed.reasoning }
 }
 
 const BASE_PROMPT = `Requirements:

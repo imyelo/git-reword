@@ -35,7 +35,7 @@ describe('ai generator', () => {
     const { generateText } = await import('ai')
 
     ;(generateText as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      output: { message: 'fix(auth): resolve login timeout', reasoning: 'More specific scope' },
+      text: JSON.stringify({ message: 'fix(auth): resolve login timeout', reasoning: 'More specific scope' }),
     })
 
     const commit = {
@@ -56,7 +56,7 @@ describe('ai generator', () => {
     const { generateText } = await import('ai')
 
     ;(generateText as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      output: { message: 'feat(ui): add new button component' },
+      text: JSON.stringify({ message: 'feat(ui): add new button component' }),
     })
 
     const diff = 'diff --git a/button.ts b/button.ts\n+export const Button = () => {}'
@@ -71,7 +71,7 @@ describe('ai generator', () => {
     const { generateText } = await import('ai')
 
     ;(generateText as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      output: { message: 'chore: update config' },
+      text: JSON.stringify({ message: 'chore: update config' }),
     })
 
     const anthropicConfig: Config = { provider: 'anthropic', model: 'claude-sonnet-4' }
@@ -91,7 +91,7 @@ describe('ai generator', () => {
     const { generateText } = await import('ai')
 
     ;(generateText as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      output: { message: 'docs: update readme' },
+      text: JSON.stringify({ message: 'docs: update readme' }),
     })
 
     const commit = {
@@ -111,7 +111,7 @@ describe('ai generator', () => {
     const { generateText } = await import('ai')
 
     ;(generateText as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      output: { message: 'refactor: simplify code' },
+      text: JSON.stringify({ message: 'refactor: simplify code' }),
     })
 
     const commit = {
