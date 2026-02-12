@@ -78,14 +78,11 @@ const DEFAULT_MODELS = {
 function getProvider(config: Config) {
   switch (config.provider) {
     case 'anthropic':
-      return (model?: string) =>
-        anthropic(model || DEFAULT_MODELS.anthropic)
+      return (model?: string) => anthropic(model || DEFAULT_MODELS.anthropic)
     case 'google':
-      return (model?: string) =>
-        google(model || DEFAULT_MODELS.google)
+      return (model?: string) => google(model || DEFAULT_MODELS.google)
     default:
-      return (model?: string) =>
-        openai(model || DEFAULT_MODELS.openai)
+      return (model?: string) => openai(model || DEFAULT_MODELS.openai)
   }
 }
 
