@@ -1,7 +1,7 @@
 import { anthropic } from '@ai-sdk/anthropic'
 import { google } from '@ai-sdk/google'
 import { openai } from '@ai-sdk/openai'
-import { generateText, zodSchema } from 'ai'
+import { generateText, Output } from 'ai'
 import { z } from 'zod'
 import type { Config } from '../config.js'
 import { getSimpleGit } from '../git/simple-git.js'
@@ -22,23 +22,8 @@ export async function generateCommitMessage(
 
   const result = await generateText({
     model: provider(config.model),
-    prompt: `Rewrite this commit message to follow Conventional Commits.
-
-Original message:
-${commit.message}
-
-${commit.body ? `Body:\n${commit.body}\n` : ''}
-
-Diff:
-${diff}
-
-Requirements:
-- Use format: type(scope): description
-- type: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
-- Be concise but descriptive
-- Keep the same semantic intent`,
-    // @ts-expect-error - output with zodSchema is the recommended replacement for generateObject
-    output: zodSchema(messageSchema),
+    prompt: PROMPTS.rewrite(commit.message, commit.body, diff),
+    output: Output.object({ schema: messageSchema }),
   })
 
   return result.output as { message: string; reasoning?: string }
@@ -52,63 +37,55 @@ export async function generateStagedMessage(
 
   const result = await generateText({
     model: provider(config.model),
-    prompt: `Generate a conventional commit message for these staged changes.
-
-Diff:
-${diff}
-
-Requirements:
-- Use format: type(scope): description
-- type: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
-- Be concise but descriptive`,
-    // @ts-expect-error - output with zodSchema is the recommended replacement for generateObject
-    output: zodSchema(messageSchema),
+    prompt: PROMPTS.staged(diff),
+    output: Output.object({ schema: messageSchema }),
   })
 
   return result.output as { message: string; reasoning?: string }
 }
 
-// Default models for each provider
+const BASE_PROMPT = `Requirements:
+- Use format: type(scope): description
+- type: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
+- Be concise but descriptive`
+
+const PROMPTS = {
+  rewrite: (message: string, body: string | undefined, diff: string) =>
+    `Rewrite this commit message to follow Conventional Commits.
+
+Original message:
+${message}
+${body ? `Body:\n${body}\n` : ''}Diff:
+${diff}
+
+${BASE_PROMPT}
+- Keep the same semantic intent`,
+
+  staged: (diff: string) =>
+    `Generate a conventional commit message for these staged changes.
+
+Diff:
+${diff}
+
+${BASE_PROMPT}`,
+}
 const DEFAULT_MODELS = {
   anthropic: 'claude-sonnet-4-20250514',
   google: 'gemini-2.0-flash-exp',
   openai: 'gpt-4o',
 } as const
 
-// Provider model function type
-type ProviderModel = (model?: string) => ReturnType<typeof anthropic>
-
-function getProvider(config: Config): ProviderModel {
-  const baseOptions = {
-    apiKey: config.apiKey,
-    baseURL: config.baseUrl,
-  }
-
+function getProvider(config: Config) {
   switch (config.provider) {
-    case 'anthropic': {
-      const modelId = DEFAULT_MODELS.anthropic
+    case 'anthropic':
       return (model?: string) =>
-        anthropic({
-          model: model || modelId,
-          ...baseOptions,
-        } as unknown as Parameters<typeof anthropic>[0])
-    }
-    case 'google': {
-      const modelId = DEFAULT_MODELS.google
+        anthropic(model || DEFAULT_MODELS.anthropic)
+    case 'google':
       return (model?: string) =>
-        google({
-          model: model || modelId,
-          ...baseOptions,
-        } as unknown as Parameters<typeof google>[0])
-    }
-    default: {
-      const modelId = DEFAULT_MODELS.openai
+        google(model || DEFAULT_MODELS.google)
+    default:
       return (model?: string) =>
-        openai({
-          model: model || modelId,
-          ...baseOptions,
-        } as unknown as Parameters<typeof openai>[0])
-    }
+        openai(model || DEFAULT_MODELS.openai)
   }
 }
 
