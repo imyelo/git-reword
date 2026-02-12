@@ -24,8 +24,8 @@ interface LogEntry {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getLogEntryField(entry: Record<string, unknown>, field: string): string {
-  const value = entry[field]
+function getLogEntryField(entry: { hash?: string; subject?: string; body?: string }, field: string): string {
+  const value = (entry as Record<string, unknown>)[field]
   return typeof value === 'string' ? value : ''
 }
 

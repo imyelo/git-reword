@@ -1,8 +1,8 @@
-import { getGitLog, getSimpleGit } from '../git/simple-git.js'
 import { randomUUID } from 'node:crypto'
-import { mkdirSync, writeFileSync, rmdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { getGitLog, getSimpleGit } from '../git/simple-git.js'
 
 export interface RewordResult {
   success: boolean
@@ -28,12 +28,10 @@ export async function executeRewordRebase(
   }
   const base = `${firstCommit.hash}^`
 
-  // Create a temporary directory for message files (secure, no /tmp symlink attacks)
   const tempDir = join(tmpdir(), `git-reword-${randomUUID()}`)
   mkdirSync(tempDir, { mode: 0o700 })
 
   try {
-    // Get original messages before rebase
     for (const commit of commits) {
       const entries = await getGitLog(git, `${commit.hash}^..${commit.hash}`)
       const entry = entries[0]
@@ -44,22 +42,17 @@ export async function executeRewordRebase(
         newMessage: commit.newMessage,
       })
 
-      // Write each message to its own file (no shell interpolation possible)
       const msgFile = join(tempDir, `${commit.hash}.msg`)
       writeFileSync(msgFile, commit.newMessage, { mode: 0o600 })
     }
 
-    // Build the rebase todo list
-    // Each exec command reads the message from a file (no shell injection possible)
     const rebaseTodo = commits
       .map(c => `exec git commit --amend -F "${join(tempDir, `${c.hash}.msg`)}" --no-gpg-sign`)
       .join('\n')
 
-    // Write the rebase script
     const scriptPath = join(tempDir, 'rebase.sh')
     writeFileSync(scriptPath, `#!/bin/bash\n${rebaseTodo}`, { mode: 0o600 })
 
-    // Start interactive rebase with the script
     await git.raw([
       'rebase',
       '-i',
@@ -73,7 +66,6 @@ export async function executeRewordRebase(
       base,
     ])
   } catch (error) {
-    // Abort on any error
     await git.raw(['rebase', '--abort']).catch(() => {})
 
     return results.map(
@@ -84,11 +76,10 @@ export async function executeRewordRebase(
       })
     )
   } finally {
-    // Clean up temp directory
     try {
-      rmdirSync(tempDir, { recursive: true })
+      rmSync(tempDir, { recursive: true, force: true })
     } catch {
-      // Ignore cleanup errors
+      // Ignore
     }
   }
 
