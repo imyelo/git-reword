@@ -3,17 +3,23 @@ import type { SimpleGit } from 'simple-git'
 // simple-git ESM wrapper - provides type-safe access to simple-git
 // simple-git is CJS-first, so we need careful handling for ESM
 
-let _gitInstance: SimpleGit | null = null
+let _cachedGit: SimpleGit | null = null
+let _cachedCwd: string | null = null
 
-export async function getSimpleGit(): Promise<SimpleGit> {
-  if (!_gitInstance) {
-    // Use dynamic import for CJS module
+export async function getSimpleGit(cwd?: string): Promise<SimpleGit> {
+  // Always create a new instance when cwd is explicitly provided
+  if (cwd) {
     const mod = await import('simple-git')
-    // Create instance - simple-git exports a factory function as default
     const factory = mod.default as unknown as (baseDir?: string) => SimpleGit
-    _gitInstance = factory()
+    return factory(cwd)
   }
-  return _gitInstance
+  // Use cached instance for cwd-less calls
+  if (!_cachedGit) {
+    const mod = await import('simple-git')
+    const factory = mod.default as unknown as (baseDir?: string) => SimpleGit
+    _cachedGit = factory()
+  }
+  return _cachedGit
 }
 
 // Define our own log entry type with required fields
@@ -24,9 +30,12 @@ interface LogEntry {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getLogEntryField(entry: { hash?: string; subject?: string; body?: string }, field: string): string {
-  const value = (entry as Record<string, unknown>)[field]
-  return typeof value === 'string' ? value : ''
+function getLogEntryField(entry: Record<string, unknown>, field: string): string {
+  const value = entry[field]
+  if (typeof value === 'string') return value
+  // simple-git uses 'message' instead of 'subject'
+  if (field === 'subject' && typeof entry.message === 'string') return entry.message
+  return ''
 }
 
 export async function getGitLog(git: SimpleGit, range: string): Promise<LogEntry[]> {
