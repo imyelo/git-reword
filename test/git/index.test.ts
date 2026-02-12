@@ -155,5 +155,33 @@ describe('git operations', () => {
         await cleanupTempRepo(tempDir)
       }
     })
+
+    it('should return false when commit exists in another branch but not current branch', async () => {
+      const tempDir = await createTempGitRepo()
+      try {
+        const { exec } = await import('node:child_process')
+        const { promisify } = await import('node:util')
+        const execAsync = promisify(exec)
+
+        // Create a commit on feature branch
+        await execAsync('git checkout -b feature', { cwd: tempDir })
+        await execAsync(
+          'echo "feature content" >> file.txt && git add file.txt && git commit -m "feat: feature commit"',
+          {
+            cwd: tempDir,
+          }
+        )
+        const featureCommitHash = (await execAsync('git rev-parse HEAD', { cwd: tempDir })).stdout.trim()
+
+        // Switch back to main branch (temp repo's default branch)
+        await execAsync('git checkout main', { cwd: tempDir })
+
+        // The commit exists in the repo but not in the current branch
+        const contains = await checkBranchContains(featureCommitHash, tempDir)
+        expect(contains).toBe(false)
+      } finally {
+        await cleanupTempRepo(tempDir)
+      }
+    })
   })
 })
