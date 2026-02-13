@@ -1,51 +1,6 @@
-import type { Commit, RewordOptions } from '../types.js'
+import type { RewordOptions } from '../types.js'
 
-export type { Commit, RewordOptions }
-
-export function parseCommit(logLine: string): Commit | null {
-  const lines = logLine.trim().split('\n')
-  if (lines.length < 1 || !lines[0]) {
-    return null
-  }
-
-  const firstLine = lines[0].trim()
-  // Check if first line has both hash and message
-  const hashMatch = firstLine.match(/^(\S+)\s+(.+)$/)
-  let hash: string
-  let message: string
-
-  if (hashMatch) {
-    // Hash and message on same line
-    hash = hashMatch[1]
-    message = hashMatch[2]
-  } else {
-    // Only hash on first line, message may be on second
-    hash = firstLine
-    message = lines[1]?.trim() || ''
-  }
-
-  const body = lines
-    .slice(message ? 2 : 1)
-    .join('\n')
-    .trim()
-
-  return {
-    hash,
-    shortHash: hash.substring(0, 7),
-    message,
-    body,
-  }
-}
-
-const COMMIT_SEPARATOR = '\n---GIT_REWORD_COMMIT---\n'
-
-export function parseCommits(logOutput: string): Commit[] {
-  return logOutput
-    .split(COMMIT_SEPARATOR)
-    .filter(Boolean)
-    .map(parseCommit)
-    .filter((c): c is Commit => c !== null)
-}
+export type { RewordOptions }
 
 export function getCommitRange(options: RewordOptions): { from: string; to: string } | null {
   if (options.last) {
