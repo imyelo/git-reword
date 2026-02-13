@@ -1,6 +1,8 @@
-import { Box, Text, useInput, useStdout } from 'ink'
+import { Box, Text, useInput } from 'ink'
+import type { ScrollViewRef } from 'ink-scroll-view'
+import { ScrollView } from 'ink-scroll-view'
 import type React from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 interface CommitRewrite {
   hash: string
@@ -16,32 +18,81 @@ interface Props {
 
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
 const SPINNER_INTERVAL = 80
-const ITEM_HEIGHT = 6 // Estimated height of each commit item in lines
+
+const CommitItem: React.FC<{
+  rewrite: CommitRewrite
+  isFocused: boolean
+  isSelected: boolean
+  spinnerFrame: number
+}> = ({ rewrite, isFocused, isSelected, spinnerFrame }) => {
+  const isGenerated = !!rewrite.newMessage
+  const dimmed = !isSelected
+  const mutedColor = dimmed ? 'gray' : isFocused ? 'black' : 'gray'
+
+  return (
+    <Box
+      flexDirection="column"
+      marginBottom={1}
+      opacity={dimmed ? 0.5 : 1}
+    >
+      <Text>
+        {isSelected ? <Text color="cyan">●</Text> : <Text color="gray">○</Text>}{' '}
+        <Text bold>{rewrite.hash.substring(0, 7)}</Text>
+        {!isGenerated && <Text dimColor> (generating...)</Text>}
+        {isGenerated && !isSelected && <Text dimColor> (keep old)</Text>}
+      </Text>
+      <Box
+        marginLeft={2}
+        flexDirection="column"
+        borderStyle="round"
+        borderColor={isFocused ? 'cyan' : dimmed ? 'black' : 'gray'}
+        paddingX={1}
+        backgroundColor={isFocused ? 'cyan' : undefined}
+      >
+        <Text color={mutedColor}>old: {rewrite.originalMessage}</Text>
+        {rewrite.originalBody && (
+          <Text
+            color={mutedColor}
+            dimColor
+          >
+            {rewrite.originalBody}
+          </Text>
+        )}
+        {isGenerated ? (
+          <Box flexDirection="column">
+            <Text
+              color={isSelected ? 'green' : 'gray'}
+              bold={isSelected}
+            >
+              new: {rewrite.newMessage}
+            </Text>
+            {rewrite.newBody && (
+              <Text
+                color={isSelected ? 'green' : 'gray'}
+                dimColor={!isSelected}
+              >
+                {rewrite.newBody}
+              </Text>
+            )}
+          </Box>
+        ) : (
+          <Text
+            color="gray"
+            dimColor
+          >
+            {SPINNER_FRAMES[spinnerFrame]} new: (generating...)
+          </Text>
+        )}
+      </Box>
+    </Box>
+  )
+}
 
 export const CommitSelector: React.FC<Props> = ({ rewrites }) => {
-  const { stdout } = useStdout()
+  const scrollRef = useRef<ScrollViewRef>(null)
   const [selected, setSelected] = useState<boolean[]>(rewrites.map(() => true))
   const [focusedIndex, setFocusedIndex] = useState(0)
   const [spinnerFrame, setSpinnerFrame] = useState(0)
-
-  // Calculate visible range based on terminal height
-  const { visibleStart, visibleEnd } = useMemo(() => {
-    const terminalHeight = stdout?.rows || 24
-    const headerLines = 6 // Title, count, generating, blank, help, blank
-    const visibleHeight = terminalHeight - headerLines - 2
-    const visibleCount = Math.max(1, Math.floor(visibleHeight / ITEM_HEIGHT))
-
-    // Center the focused item
-    let start = focusedIndex - Math.floor(visibleCount / 2)
-    start = Math.max(0, start)
-    let end = start + visibleCount
-    if (end > rewrites.length) {
-      end = rewrites.length
-      start = Math.max(0, end - visibleCount)
-    }
-
-    return { visibleStart: start, visibleEnd: end }
-  }, [stdout?.rows, focusedIndex, rewrites.length])
 
   // Spinner animation
   useEffect(() => {
@@ -53,19 +104,33 @@ export const CommitSelector: React.FC<Props> = ({ rewrites }) => {
     }
   }, [rewrites])
 
+  // Scroll to focused item when it changes
+  useEffect(() => {
+    const pos = scrollRef.current?.getItemPosition(focusedIndex)
+    if (pos) {
+      scrollRef.current?.scrollTo(pos.top)
+    }
+  }, [focusedIndex])
+
   useInput((input, key) => {
     if (key.upArrow) {
       setFocusedIndex(i => Math.max(0, i - 1))
+      scrollRef.current?.scrollBy(-1)
     } else if (key.downArrow) {
       setFocusedIndex(i => Math.min(rewrites.length - 1, i + 1))
+      scrollRef.current?.scrollBy(1)
     } else if (key.pageUp) {
       setFocusedIndex(i => Math.max(0, i - 5))
+      scrollRef.current?.scrollBy(-5)
     } else if (key.pageDown) {
       setFocusedIndex(i => Math.min(rewrites.length - 1, i + 5))
+      scrollRef.current?.scrollBy(5)
     } else if (key.home) {
       setFocusedIndex(0)
+      scrollRef.current?.scrollToTop()
     } else if (key.end) {
       setFocusedIndex(rewrites.length - 1)
+      scrollRef.current?.scrollToBottom()
     } else if (input === ' ') {
       const newSelected = [...selected]
       newSelected[focusedIndex] = !newSelected[focusedIndex]
@@ -98,77 +163,17 @@ export const CommitSelector: React.FC<Props> = ({ rewrites }) => {
       {!isAllGenerated && <Text dimColor>Generating... {SPINNER_FRAMES[spinnerFrame]}</Text>}
       <Text> </Text>
 
-      {/* Render visible items */}
-      {rewrites.slice(visibleStart, visibleEnd).map((rewrite, idx) => {
-        const index = visibleStart + idx
-        const isFocused = index === focusedIndex
-        const isSelected = selected[index]
-        const isGenerated = !!rewrite.newMessage
-
-        // Dim unselected commits
-        const dimmed = !isSelected
-        const _baseColor = dimmed ? 'gray' : isFocused ? 'black' : 'white'
-        const mutedColor = dimmed ? 'gray' : isFocused ? 'black' : 'gray'
-
-        return (
-          <Box
+      <ScrollView ref={scrollRef}>
+        {rewrites.map((rewrite, index) => (
+          <CommitItem
             key={rewrite.hash}
-            flexDirection="column"
-            marginBottom={1}
-            opacity={dimmed ? 0.5 : 1}
-          >
-            <Text>
-              {isSelected ? <Text color="cyan">●</Text> : <Text color="gray">○</Text>}{' '}
-              <Text bold>{rewrite.hash.substring(0, 7)}</Text>
-              {!isGenerated && <Text dimColor> (generating...)</Text>}
-              {isGenerated && !isSelected && <Text dimColor> (keep old)</Text>}
-            </Text>
-            <Box
-              marginLeft={2}
-              flexDirection="column"
-              borderStyle="round"
-              borderColor={isFocused ? 'cyan' : dimmed ? 'black' : 'gray'}
-              paddingX={1}
-              backgroundColor={isFocused ? 'cyan' : undefined}
-            >
-              <Text color={mutedColor}>old: {rewrite.originalMessage}</Text>
-              {rewrite.originalBody && (
-                <Text
-                  color={mutedColor}
-                  dimColor
-                >
-                  {rewrite.originalBody}
-                </Text>
-              )}
-              {isGenerated ? (
-                <Box flexDirection="column">
-                  <Text
-                    color={isSelected ? 'green' : 'gray'}
-                    bold={isSelected}
-                  >
-                    new: {rewrite.newMessage}
-                  </Text>
-                  {rewrite.newBody && (
-                    <Text
-                      color={isSelected ? 'green' : 'gray'}
-                      dimColor={!isSelected}
-                    >
-                      {rewrite.newBody}
-                    </Text>
-                  )}
-                </Box>
-              ) : (
-                <Text
-                  color="gray"
-                  dimColor
-                >
-                  {SPINNER_FRAMES[spinnerFrame]} new: (generating...)
-                </Text>
-              )}
-            </Box>
-          </Box>
-        )
-      })}
+            rewrite={rewrite}
+            isFocused={index === focusedIndex}
+            isSelected={selected[index]}
+            spinnerFrame={spinnerFrame}
+          />
+        ))}
+      </ScrollView>
 
       <Text> </Text>
       <Text dimColor>────────────────────────────────────────────</Text>

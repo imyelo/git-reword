@@ -3183,6 +3183,11 @@ ini@^1.3.4, ini@~1.3.0:
   resolved "https://registry.yarnpkg.com/ini/-/ini-1.3.8.tgz#a29da425b48806f34767a4efce397269af28432c"
   integrity sha512-JV/yugV2uzW5iMRSiZAyDtQd+nxtUnjeLt0acNdw98kKLrvuRVyB80tsREOE7yvGVgalhZ6RNXCmEHkUKBKxew==
 
+ink-scroll-view@^0.3.6:
+  version "0.3.6"
+  resolved "https://registry.yarnpkg.com/ink-scroll-view/-/ink-scroll-view-0.3.6.tgz#057949458ab9879760f07532ecdd5724cc151318"
+  integrity sha512-XqLkmFFCA5Ow2lVyvv7q0aVHzB78XojIM8gZMQ3//lvy8ZDpJsXWtTRwsCEsdQHnwvMCDCnKCzgF4xkkzoN8mQ==
+
 ink@^6.7.0:
   version "6.7.0"
   resolved "https://registry.yarnpkg.com/ink/-/ink-6.7.0.tgz#244f27497196d6eb02768f1bd3923f75e3bd5d27"
