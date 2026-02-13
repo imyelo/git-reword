@@ -38,7 +38,7 @@ async function generateRewrites(commits: Commit[], flags: ParsedFlags, config: C
 
   // Show interactive selector with live generation
   const selected = await selectCommits(
-    commits.map(c => ({ hash: c.hash, message: c.message })),
+    commits.map(c => ({ hash: c.hash, message: c.message, body: c.body })),
     generateMessage
   )
 

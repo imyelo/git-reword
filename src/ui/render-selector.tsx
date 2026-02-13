@@ -5,6 +5,7 @@ import { CommitSelector } from './commit-selector.js'
 interface CommitRewrite {
   hash: string
   originalMessage: string
+  originalBody?: string
   newMessage?: string
   newBody?: string
 }
@@ -27,13 +28,20 @@ export function createCommitSelector(rewrites: CommitRewrite[]) {
 }
 
 export async function selectCommits(
-  commits: Array<{ hash: string; message: string }>,
+  commits: Array<{ hash: string; message: string; body?: string }>,
   onGenerate: (commit: { hash: string; message: string }) => Promise<{ message: string; body: string }>
-): Promise<Array<{ hash: string; originalMessage: string; newMessage: string; newBody: string }> | null> {
+): Promise<Array<{
+  hash: string
+  originalMessage: string
+  originalBody?: string
+  newMessage: string
+  newBody: string
+}> | null> {
   // Initialize with all commits (no newMessage yet)
   const rewrites: CommitRewrite[] = commits.map(c => ({
     hash: c.hash,
     originalMessage: c.message,
+    originalBody: c.body,
   }))
 
   return new Promise(resolve => {
@@ -75,6 +83,7 @@ export async function selectCommits(
       const generatedRewrites: CommitRewrite[] = commits.map(c => ({
         hash: c.hash,
         originalMessage: c.message,
+        originalBody: c.body,
       }))
 
       for (let i = 0; i < commits.length; i++) {
@@ -83,6 +92,7 @@ export async function selectCommits(
         generatedRewrites[i] = {
           hash: commit.hash,
           originalMessage: commit.message,
+          originalBody: commit.body,
           newMessage: result.message,
           newBody: result.body,
         }
