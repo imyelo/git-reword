@@ -19,8 +19,10 @@
   "oclif": {
     "bin": "git-reword",
     "dirname": "git-reword",
-    "commands": "./lib/cli/commands",
-    "default": "./lib/cli/commands/default.js",
+    "commands": {
+      "strategy": "single",
+      "target": "./lib/esm/index.js"
+    },
     "plugins": []
   },
   "scripts": {

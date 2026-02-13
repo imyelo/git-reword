@@ -9,10 +9,7 @@ const __dirname = dirname(__filename)
 
 const version = process.env.VERSION || JSON.parse(readFileSync(`${__dirname}/../package.json`, 'utf8')).version
 
-// Auto-add 'default' subcommand if no subcommand is provided
-const rawArgs = process.argv.slice(2)
-const firstArg = rawArgs[0]
-const args = firstArg && !firstArg.startsWith('-') ? rawArgs : ['default', ...rawArgs]
+const args = process.argv.slice(2)
 
 const isDev = process.env.GIT_REWORD_DEV === '1'
 const rootDir = `${__dirname}/..`
@@ -29,7 +26,10 @@ await execute({
           name: 'git-reword',
           version,
           oclif: {
-            commands: `${rootDir}/src/commands`,
+            commands: {
+              strategy: 'single',
+              target: `${rootDir}/src/index.js`,
+            },
           },
         },
       }
