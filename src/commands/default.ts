@@ -1,7 +1,7 @@
 import { Args, Command, Flags } from '@oclif/core'
 import { generateCommitMessage, generateStagedMessage } from '../ai/generator.js'
 import { type Config, loadConfig } from '../config.js'
-import { checkUncommittedChanges, getCommits } from '../git/index.js'
+import { checkBranchContains, checkUncommittedChanges, getCommits } from '../git/index.js'
 import { getSimpleGit } from '../git/simple-git.js'
 import { executeRewordRebase } from '../rebase/index.js'
 import type { Commit } from '../types.js'
@@ -125,6 +125,23 @@ class MainCommand extends Command {
     // Get commits to reword
     const options = commit ? { commit } : flags.last ? { last: flags.last } : flags.since ? { since: flags.since } : {}
     const commits = await getCommits(options)
+
+    // Validate commits are on current branch
+    if (commit) {
+      if (!(await checkBranchContains(commit))) {
+        this.error(`Commit '${commit}' is not on the current branch. Please checkout the correct branch first.`)
+      }
+    } else if (flags.since) {
+      if (!(await checkBranchContains(flags.since))) {
+        this.error(`Commit '${flags.since}' is not on the current branch. Please checkout the correct branch first.`)
+      }
+    } else if (options.range) {
+      const [from, to] = options.range.split('..')
+      if (!(await checkBranchContains(from)) || !(await checkBranchContains(to))) {
+        this.error(`One or more commits in range '${options.range}' are not on the current branch. Please checkout the correct branch first.`)
+      }
+    }
+    // Note: --last doesn't need validation as it always operates on current branch's last N commits
 
     // Generate new messages
     const selectedRewrites = await generateRewrites(commits, flags, config)
