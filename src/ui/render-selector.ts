@@ -1,5 +1,5 @@
-import React from 'react'
 import { render } from 'ink'
+import React from 'react'
 import { CommitSelector } from './commit-selector.js'
 
 interface CommitRewrite {
@@ -9,7 +9,7 @@ interface CommitRewrite {
 }
 
 export async function selectCommits(rewrites: CommitRewrite[]): Promise<CommitRewrite[] | null> {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     // Render ink component to a virtual DOM
     const { unmount } = render(React.createElement(CommitSelector, { rewrites }))
 

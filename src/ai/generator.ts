@@ -79,7 +79,7 @@ function getProvider(config: Config) {
   const commonOptions = {
     apiKey: config.apiKey,
     baseURL: config.baseUrl,
-    headers: config.headers,
+    headers: config.headers as Record<string, string> | undefined,
   }
 
   switch (config.provider) {

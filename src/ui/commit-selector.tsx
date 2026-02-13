@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react'
 import { Box, Text, useInput } from 'ink'
+import type React from 'react'
+import { useEffect, useState } from 'react'
 
 interface CommitRewrite {
   hash: string
@@ -44,13 +45,22 @@ export const CommitSelector: React.FC<Props> = ({ rewrites }) => {
       <Text> </Text>
 
       {rewrites.map((rewrite, index) => (
-        <Box key={rewrite.hash} flexDirection="column" marginBottom={1}>
+        <Box
+          key={rewrite.hash}
+          flexDirection="column"
+          marginBottom={1}
+        >
           <Text>
-            {selected[index] ? <Text color="cyan">●</Text> : <Text color="gray">○</Text>}
-            {' '}
+            {selected[index] ? <Text color="cyan">●</Text> : <Text color="gray">○</Text>}{' '}
             <Text bold>{rewrite.hash.substring(0, 7)}</Text>
           </Text>
-          <Box marginLeft={2} flexDirection="column" borderStyle="round" borderColor="gray" paddingX={1}>
+          <Box
+            marginLeft={2}
+            flexDirection="column"
+            borderStyle="round"
+            borderColor="gray"
+            paddingX={1}
+          >
             <Text color="gray">old: {rewrite.originalMessage}</Text>
             <Text color="green">new: {rewrite.newMessage}</Text>
           </Box>
@@ -59,8 +69,8 @@ export const CommitSelector: React.FC<Props> = ({ rewrites }) => {
 
       <Text> </Text>
       <Text dimColor>────────────────────────────────────────────</Text>
-      <Text dimColor>[Space] Toggle  [a] Select All  [Enter] Apply</Text>
-      <Text dimColor>[↑↓] Navigate  [c] Cancel</Text>
+      <Text dimColor>[Space] Toggle [a] Select All [Enter] Apply</Text>
+      <Text dimColor>[↑↓] Navigate [c] Cancel</Text>
     </Box>
   )
 }

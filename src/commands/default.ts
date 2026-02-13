@@ -4,8 +4,8 @@ import { type Config, loadConfig } from '../config.js'
 import { checkUncommittedChanges, getCommits } from '../git/index.js'
 import { getSimpleGit } from '../git/simple-git.js'
 import { executeRewordRebase } from '../rebase/index.js'
-import { confirm } from '../ui.js'
 import { selectCommits } from '../ui/render-selector.js'
+import { confirm } from '../ui.js'
 
 // Flags interface for runtime parsed values (after oclif processing)
 interface ParsedFlags {
