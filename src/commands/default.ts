@@ -5,6 +5,7 @@ import { checkUncommittedChanges, getCommits } from '../git/index.js'
 import { getSimpleGit } from '../git/simple-git.js'
 import { executeRewordRebase } from '../rebase/index.js'
 import { confirm } from '../ui.js'
+import { selectCommits } from '../ui/render-selector.js'
 
 // Flags interface for runtime parsed values (after oclif processing)
 interface ParsedFlags {
@@ -98,21 +99,23 @@ class MainCommand extends Command {
       return
     }
 
-    // Confirmation if not --yes
+    // Show interactive selector
+    let selectedRewrites = rewrites
     if (!flags.yes) {
-      this.log('\nCommit rewrites:')
-      for (const r of rewrites) {
-        this.log(`  ${r.hash.substring(0, 7)}: ${r.originalMessage} -> ${r.newMessage}`)
-      }
-      const proceed = await confirm('\nApply these changes? [y/n] ')
-      if (!proceed) {
+      const selected = await selectCommits(rewrites)
+      if (!selected) {
         this.log('Aborted.')
+        return
+      }
+      selectedRewrites = selected
+      if (selectedRewrites.length === 0) {
+        this.log('No commits selected.')
         return
       }
     }
 
     // Execute rebase
-    const results = await executeRewordRebase(rewrites.map(r => ({ hash: r.hash, newMessage: r.newMessage })))
+    const results = await executeRewordRebase(selectedRewrites.map(r => ({ hash: r.hash, newMessage: r.newMessage })))
 
     // Report results
     let successCount = 0
