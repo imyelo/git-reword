@@ -16,7 +16,7 @@ export type Config = z.infer<typeof configSchema>
 export async function loadConfig(): Promise<Config> {
   const { config } = await loadC12({
     name: 'git-reword',
-    configFile: 'config.json',
+    globalRc: true,
   })
   return configSchema.parse(config || {})
 }

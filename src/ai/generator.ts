@@ -49,7 +49,13 @@ export async function generateStagedMessage(
 const BASE_PROMPT = `Requirements:
 - Use format: type(scope): description
 - type: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
-- Be concise but descriptive`
+- Be concise but descriptive
+
+Response in JSON format:
+{
+  "message": "type(scope): description",
+  "reasoning": "brief explanation"
+}`
 
 const PROMPTS = {
   rewrite: (message: string, body: string | undefined, diff: string) =>
