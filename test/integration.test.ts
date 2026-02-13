@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { main } from '../src/index'
+import MainCommand from '../src/index'
 
 describe('integration', () => {
-  it('should export main function', () => {
-    expect(typeof main).toBe('function')
+  it('should export main command', () => {
+    expect(MainCommand).toBeDefined()
   })
 
-  it('should export main from index', () => {
-    expect(main).toBeDefined()
+  it('should export command from index', () => {
+    expect(MainCommand).toBeDefined()
   })
 })
