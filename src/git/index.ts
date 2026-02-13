@@ -15,8 +15,10 @@ export async function getCommits(options: RewordOptions, cwd?: string): Promise<
   return parseCommits(formatLogOutput(entries))
 }
 
+const COMMIT_SEPARATOR = '\n---GIT_REWORD_COMMIT---\n'
+
 function formatLogOutput(entries: Array<{ hash: string; subject: string; body: string }>): string {
-  return entries.map(e => `${e.hash}\n${e.subject}\n${e.body}`).join('\n\n')
+  return entries.map(e => `${e.hash}\n${e.subject}\n${e.body}`).join(COMMIT_SEPARATOR)
 }
 
 export async function checkUncommittedChanges(cwd?: string): Promise<boolean> {

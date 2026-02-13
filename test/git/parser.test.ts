@@ -66,7 +66,7 @@ describe('git parser', () => {
     })
 
     it('should parse multiple commits', () => {
-      const commits = parseCommits('hash1\nmsg1\n\nhash2\nmsg2\n')
+      const commits = parseCommits('hash1\nmsg1\n\n---GIT_REWORD_COMMIT---\nhash2\nmsg2\n')
       expect(commits).toHaveLength(2)
       expect(commits[0]?.hash).toBe('hash1')
       expect(commits[0]?.message).toBe('msg1')
@@ -75,7 +75,7 @@ describe('git parser', () => {
     })
 
     it('should filter out empty lines', () => {
-      const commits = parseCommits('hash1\nmsg1\n\n\n\nhash2\nmsg2')
+      const commits = parseCommits('hash1\nmsg1\n\n---GIT_REWORD_COMMIT---\n\n---GIT_REWORD_COMMIT---\nhash2\nmsg2')
       expect(commits).toHaveLength(2)
     })
   })

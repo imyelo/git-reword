@@ -37,9 +37,11 @@ export function parseCommit(logLine: string): Commit | null {
   }
 }
 
+const COMMIT_SEPARATOR = '\n---GIT_REWORD_COMMIT---\n'
+
 export function parseCommits(logOutput: string): Commit[] {
   return logOutput
-    .split(/\n\n/)
+    .split(COMMIT_SEPARATOR)
     .filter(Boolean)
     .map(parseCommit)
     .filter((c): c is Commit => c !== null)
