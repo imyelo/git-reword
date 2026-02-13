@@ -14,9 +14,24 @@ const rawArgs = process.argv.slice(2)
 const firstArg = rawArgs[0]
 const args = firstArg && !firstArg.startsWith('-') ? rawArgs : ['default', ...rawArgs]
 
+const isDev = process.env.GIT_REWORD_DEV === '1'
+const rootDir = `${__dirname}/..`
+
 await execute({
   dir: __dirname,
-  development: process.env.NODE_ENV === 'development',
+  development: isDev,
   version,
   args,
+  loadOptions: isDev
+    ? {
+        root: rootDir,
+        pjson: {
+          name: 'git-reword',
+          version,
+          oclif: {
+            commands: `${rootDir}/src/commands`,
+          },
+        },
+      }
+    : undefined,
 })

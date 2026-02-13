@@ -24,7 +24,8 @@
     "plugins": []
   },
   "scripts": {
-    "dev": "./bin/run",
+    "dev": "GIT_REWORD_DEV=1 tsx bin/run",
+    "dev:watch": "GIT_REWORD_DEV=1 tsx watch bin/run",
     "clean": "rimraf ./lib",
     "prebuild": "npm run clean",
     "build": "npm run clean && npm run build:cli && npm run build:esm && npm run build:types",
