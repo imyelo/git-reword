@@ -1,7 +1,7 @@
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
-import { generateText } from 'ai'
+import { generateObject } from 'ai'
 import { z } from 'zod'
 import type { Config } from '../config.js'
 import { getSimpleGit } from '../git/simple-git.js'
@@ -20,14 +20,13 @@ export async function generateCommitMessage(
 
   const diff = await getCommitDiff(commit.hash)
 
-  const result = await generateText({
+  const result = await generateObject({
     model: provider(config.model),
+    schema: messageSchema,
     prompt: PROMPTS.rewrite(commit.message, commit.body, diff),
   })
 
-  // Parse the structured output from text response
-  const parsed = messageSchema.parse(JSON.parse(result.text))
-  return { message: parsed.message, reasoning: parsed.reasoning }
+  return { message: result.object.message, reasoning: result.object.reasoning }
 }
 
 export async function generateStagedMessage(
@@ -36,26 +35,19 @@ export async function generateStagedMessage(
 ): Promise<{ message: string; reasoning?: string }> {
   const provider = getProvider(config)
 
-  const result = await generateText({
+  const result = await generateObject({
     model: provider(config.model),
+    schema: messageSchema,
     prompt: PROMPTS.staged(diff),
   })
 
-  // Parse the structured output from text response
-  const parsed = messageSchema.parse(JSON.parse(result.text))
-  return { message: parsed.message, reasoning: parsed.reasoning }
+  return { message: result.object.message, reasoning: result.object.reasoning }
 }
 
 const BASE_PROMPT = `Requirements:
 - Use format: type(scope): description
 - type: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
-- Be concise but descriptive
-
-Response in JSON format:
-{
-  "message": "type(scope): description",
-  "reasoning": "brief explanation"
-}`
+- Be concise but descriptive`
 
 const PROMPTS = {
   rewrite: (message: string, body: string | undefined, diff: string) =>

@@ -14,10 +14,7 @@ vi.mock('../../src/git/simple-git.js', () => ({
 // Mock AI SDK
 vi.mock('ai', async () => {
   return {
-    generateText: vi.fn(),
-    Output: {
-      object: vi.fn(),
-    },
+    generateObject: vi.fn(),
   }
 })
 
@@ -32,10 +29,10 @@ describe('ai generator', () => {
   })
 
   it('should generate commit message for a given commit', async () => {
-    const { generateText } = await import('ai')
+    const { generateObject } = await import('ai')
 
-    ;(generateText as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      text: JSON.stringify({ message: 'fix(auth): resolve login timeout', reasoning: 'More specific scope' }),
+    ;(generateObject as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      object: { message: 'fix(auth): resolve login timeout', reasoning: 'More specific scope' },
     })
 
     const commit = {
@@ -49,14 +46,14 @@ describe('ai generator', () => {
 
     expect(result.message).toBe('fix(auth): resolve login timeout')
     expect(result.reasoning).toBe('More specific scope')
-    expect(generateText).toHaveBeenCalledTimes(1)
+    expect(generateObject).toHaveBeenCalledTimes(1)
   })
 
   it('should generate message for staged changes', async () => {
-    const { generateText } = await import('ai')
+    const { generateObject } = await import('ai')
 
-    ;(generateText as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      text: JSON.stringify({ message: 'feat(ui): add new button component' }),
+    ;(generateObject as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      object: { message: 'feat(ui): add new button component' },
     })
 
     const diff = 'diff --git a/button.ts b/button.ts\n+export const Button = () => {}'
@@ -64,14 +61,14 @@ describe('ai generator', () => {
     const result = await generateStagedMessage(diff, baseConfig)
 
     expect(result.message).toBe('feat(ui): add new button component')
-    expect(generateText).toHaveBeenCalledTimes(1)
+    expect(generateObject).toHaveBeenCalledTimes(1)
   })
 
   it('should handle different providers', async () => {
-    const { generateText } = await import('ai')
+    const { generateObject } = await import('ai')
 
-    ;(generateText as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      text: JSON.stringify({ message: 'chore: update config' }),
+    ;(generateObject as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      object: { message: 'chore: update config' },
     })
 
     const anthropicConfig: Config = { provider: 'anthropic', model: 'claude-sonnet-4' }
@@ -88,10 +85,10 @@ describe('ai generator', () => {
   })
 
   it('should handle missing reasoning', async () => {
-    const { generateText } = await import('ai')
+    const { generateObject } = await import('ai')
 
-    ;(generateText as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      text: JSON.stringify({ message: 'docs: update readme' }),
+    ;(generateObject as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      object: { message: 'docs: update readme' },
     })
 
     const commit = {
@@ -108,10 +105,10 @@ describe('ai generator', () => {
   })
 
   it('should use default model when not specified', async () => {
-    const { generateText } = await import('ai')
+    const { generateObject } = await import('ai')
 
-    ;(generateText as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      text: JSON.stringify({ message: 'refactor: simplify code' }),
+    ;(generateObject as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      object: { message: 'refactor: simplify code' },
     })
 
     const commit = {
@@ -123,7 +120,7 @@ describe('ai generator', () => {
 
     await generateCommitMessage(commit, { provider: 'openai' })
 
-    // Verify generateText was called (provider uses default model)
-    expect(generateText).toHaveBeenCalledTimes(1)
+    // Verify generateObject was called (provider uses default model)
+    expect(generateObject).toHaveBeenCalledTimes(1)
   })
 })
