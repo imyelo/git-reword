@@ -60,6 +60,7 @@ interface ParsedFlags {
   model?: string
   last?: number
   since?: string
+  force: boolean
 }
 
 class MainCommand extends Command {
@@ -102,6 +103,11 @@ class MainCommand extends Command {
     since: Flags.string({
       description: 'Reword commits from the commit after this ref to HEAD',
     }),
+    force: Flags.boolean({
+      char: 'f',
+      description: 'Skip uncommitted changes check (for debugging)',
+      default: false,
+    }),
   }
 
   async run() {
@@ -117,8 +123,8 @@ class MainCommand extends Command {
   }
 
   private async runReword(ref: string | undefined, flags: ParsedFlags, config: Config) {
-    // Pre-flight: check uncommitted changes
-    if (await checkUncommittedChanges()) {
+    // Pre-flight: check uncommitted changes (skip with --force for debugging)
+    if (!flags.force && (await checkUncommittedChanges())) {
       this.error('Uncommitted changes detected. Please commit or stash them first.')
     }
 
