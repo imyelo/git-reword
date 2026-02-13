@@ -1,6 +1,6 @@
-import { Box, Text, useInput } from 'ink'
+import { Box, Text, useInput, useStdout } from 'ink'
 import type React from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 interface CommitRewrite {
   hash: string
@@ -16,11 +16,32 @@ interface Props {
 
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
 const SPINNER_INTERVAL = 80
+const ITEM_HEIGHT = 6 // Estimated height of each commit item in lines
 
 export const CommitSelector: React.FC<Props> = ({ rewrites }) => {
+  const { stdout } = useStdout()
   const [selected, setSelected] = useState<boolean[]>(rewrites.map(() => true))
   const [focusedIndex, setFocusedIndex] = useState(0)
   const [spinnerFrame, setSpinnerFrame] = useState(0)
+
+  // Calculate visible range based on terminal height
+  const { visibleStart, visibleEnd } = useMemo(() => {
+    const terminalHeight = stdout?.rows || 24
+    const headerLines = 6 // Title, count, generating, blank, help, blank
+    const visibleHeight = terminalHeight - headerLines - 2
+    const visibleCount = Math.max(1, Math.floor(visibleHeight / ITEM_HEIGHT))
+
+    // Center the focused item
+    let start = focusedIndex - Math.floor(visibleCount / 2)
+    start = Math.max(0, start)
+    let end = start + visibleCount
+    if (end > rewrites.length) {
+      end = rewrites.length
+      start = Math.max(0, end - visibleCount)
+    }
+
+    return { visibleStart: start, visibleEnd: end }
+  }, [stdout?.rows, focusedIndex, rewrites.length])
 
   // Spinner animation
   useEffect(() => {
@@ -77,7 +98,9 @@ export const CommitSelector: React.FC<Props> = ({ rewrites }) => {
       {!isAllGenerated && <Text dimColor>Generating... {SPINNER_FRAMES[spinnerFrame]}</Text>}
       <Text> </Text>
 
-      {rewrites.map((rewrite, index) => {
+      {/* Render visible items */}
+      {rewrites.slice(visibleStart, visibleEnd).map((rewrite, idx) => {
+        const index = visibleStart + idx
         const isFocused = index === focusedIndex
         const isSelected = selected[index]
         const isGenerated = !!rewrite.newMessage
