@@ -59,6 +59,7 @@ interface ParsedFlags {
   provider?: string
   model?: string
   last?: number
+  since?: string
 }
 
 class MainCommand extends Command {
@@ -98,6 +99,9 @@ class MainCommand extends Command {
       description: 'Number of recent commits to reword',
       min: 1,
     }),
+    since: Flags.string({
+      description: 'Reword commits from the commit after this ref to HEAD',
+    }),
   }
 
   async run() {
@@ -119,7 +123,7 @@ class MainCommand extends Command {
     }
 
     // Get commits to reword
-    const options = commit ? { commit } : flags.last ? { last: flags.last } : {}
+    const options = commit ? { commit } : flags.last ? { last: flags.last } : flags.since ? { since: flags.since } : {}
     const commits = await getCommits(options)
 
     // Generate new messages
