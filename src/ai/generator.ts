@@ -1,6 +1,6 @@
-import { anthropic } from '@ai-sdk/anthropic'
-import { google } from '@ai-sdk/google'
-import { openai } from '@ai-sdk/openai'
+import { createAnthropic } from '@ai-sdk/anthropic'
+import { createGoogleGenerativeAI } from '@ai-sdk/google'
+import { createOpenAI } from '@ai-sdk/openai'
 import { generateText } from 'ai'
 import { z } from 'zod'
 import type { Config } from '../config.js'
@@ -78,13 +78,23 @@ const DEFAULT_MODELS = {
 } as const
 
 function getProvider(config: Config) {
+  const commonOptions = {
+    apiKey: config.apiKey,
+    baseURL: config.baseUrl,
+    headers: config.headers,
+  }
+
   switch (config.provider) {
     case 'anthropic':
-      return (model?: string) => anthropic(model || DEFAULT_MODELS.anthropic)
+      return (model?: string) => createAnthropic(commonOptions)(model || DEFAULT_MODELS.anthropic)
     case 'google':
-      return (model?: string) => google(model || DEFAULT_MODELS.google)
+      return (model?: string) => createGoogleGenerativeAI(commonOptions)(model || DEFAULT_MODELS.google)
     default:
-      return (model?: string) => openai(model || DEFAULT_MODELS.openai)
+      return (model?: string) =>
+        createOpenAI({
+          ...commonOptions,
+          organization: config.organization,
+        })(model || DEFAULT_MODELS.openai)
   }
 }
 

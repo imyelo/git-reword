@@ -6,6 +6,8 @@ const configSchema = z.object({
   model: z.string().optional(),
   apiKey: z.string().optional(),
   baseUrl: z.string().optional(),
+  organization: z.string().optional(),
+  headers: z.record(z.string()).optional(),
   systemPrompt: z.string().optional(),
 })
 
