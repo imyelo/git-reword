@@ -66,8 +66,8 @@ class MainCommand extends Command {
   static summary = 'AI-powered Git commit message rewriter'
 
   static args = {
-    commit: Args.string({
-      description: 'Specific commit to reword',
+    ref: Args.string({
+      description: 'Commit, range (e.g., HEAD~3..HEAD), or branch to reword',
       required: false,
     }),
   }
@@ -113,32 +113,48 @@ class MainCommand extends Command {
       return this.runStaged(parsed, config)
     }
 
-    return this.runReword(args.commit, parsed, config)
+    return this.runReword(args.ref, parsed, config)
   }
 
-  private async runReword(commit: string | undefined, flags: ParsedFlags, config: Config) {
+  private async runReword(ref: string | undefined, flags: ParsedFlags, config: Config) {
     // Pre-flight: check uncommitted changes
     if (await checkUncommittedChanges()) {
       this.error('Uncommitted changes detected. Please commit or stash them first.')
     }
 
-    // Get commits to reword
-    const options = commit ? { commit } : flags.last ? { last: flags.last } : flags.since ? { since: flags.since } : {}
+    // Determine if ref is a range or single commit
+    let options: { commit?: string; range?: string; last?: number; since?: string } = {}
+    if (ref) {
+      if (ref.includes('..')) {
+        // Range format: aaa..bbb
+        options = { range: ref }
+      } else {
+        // Single commit
+        options = { commit: ref }
+      }
+    } else if (flags.last) {
+      options = { last: flags.last }
+    } else if (flags.since) {
+      options = { since: flags.since }
+    }
+
     const commits = await getCommits(options)
 
     // Validate commits are on current branch
-    if (commit) {
-      if (!(await checkBranchContains(commit))) {
-        this.error(`Commit '${commit}' is not on the current branch. Please checkout the correct branch first.`)
-      }
-    } else if (flags.since) {
-      if (!(await checkBranchContains(flags.since))) {
-        this.error(`Commit '${flags.since}' is not on the current branch. Please checkout the correct branch first.`)
+    if (options.commit) {
+      if (!(await checkBranchContains(options.commit))) {
+        this.error(`Commit '${options.commit}' is not on the current branch. Please checkout the correct branch first.`)
       }
     } else if (options.range) {
       const [from, to] = options.range.split('..')
       if (!(await checkBranchContains(from)) || !(await checkBranchContains(to))) {
-        this.error(`One or more commits in range '${options.range}' are not on the current branch. Please checkout the correct branch first.`)
+        this.error(
+          `One or more commits in range '${options.range}' are not on the current branch. Please checkout the correct branch first.`
+        )
+      }
+    } else if (options.since) {
+      if (!(await checkBranchContains(options.since))) {
+        this.error(`Commit '${options.since}' is not on the current branch. Please checkout the correct branch first.`)
       }
     }
     // Note: --last doesn't need validation as it always operates on current branch's last N commits
