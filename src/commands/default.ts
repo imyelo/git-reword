@@ -4,8 +4,52 @@ import { type Config, loadConfig } from '../config.js'
 import { checkUncommittedChanges, getCommits } from '../git/index.js'
 import { getSimpleGit } from '../git/simple-git.js'
 import { executeRewordRebase } from '../rebase/index.js'
+import type { Commit } from '../types.js'
 import { selectCommits } from '../ui/render-selector.jsx'
 import { confirm } from '../ui.js'
+
+type RewriteResult = Array<{ hash: string; originalMessage: string; newMessage: string }>
+
+// Generate commit message rewrites (shared by dry-run and normal mode)
+async function generateRewrites(commits: Commit[], flags: ParsedFlags, config: Config): Promise<RewriteResult | null> {
+  const generateMessage = async (commit: { hash: string; message: string }) => {
+    const fullCommit = commits.find(c => c.hash === commit.hash)
+    if (!fullCommit) {
+      return commit.message
+    }
+    const generated = await generateCommitMessage(fullCommit, config)
+    return generated.message
+  }
+
+  if (flags.yes) {
+    // Skip selector, generate all
+    const rewrites: RewriteResult = []
+    for (const commit of commits) {
+      const newMessage = await generateMessage({ hash: commit.hash, message: commit.message })
+      rewrites.push({
+        hash: commit.hash,
+        originalMessage: commit.message,
+        newMessage,
+      })
+    }
+    return rewrites
+  }
+
+  // Show interactive selector with live generation
+  const selected = await selectCommits(
+    commits.map(c => ({ hash: c.hash, message: c.message })),
+    generateMessage
+  )
+
+  if (!selected) {
+    return null // Aborted
+  }
+  if (selected.length === 0) {
+    console.log('No commits selected.')
+    return null
+  }
+  return selected
+}
 
 // Flags interface for runtime parsed values (after oclif processing)
 interface ParsedFlags {
@@ -78,50 +122,21 @@ class MainCommand extends Command {
     const options = commit ? { commit } : flags.last ? { last: flags.last } : {}
     const commits = await getCommits(options)
 
-    // Generate new messages with interactive UI
-    let selectedRewrites: Array<{ hash: string; originalMessage: string; newMessage: string }> = []
+    // Generate new messages
+    const selectedRewrites = await generateRewrites(commits, flags, config)
 
-    if (flags['dry-run']) {
-      for (const commit of commits) {
-        const generated = await generateCommitMessage(commit, config)
-        this.log(`[DRY-RUN] ${commit.shortHash}: ${commit.message} -> ${generated.message}`)
-      }
-      this.log('Dry run complete. Run without --dry-run to apply changes.')
-      return
+    if (!selectedRewrites) {
+      return // User aborted
     }
 
-    if (flags.yes) {
-      // Skip selector, generate all and apply
-      for (const commit of commits) {
-        const generated = await generateCommitMessage(commit, config)
-        selectedRewrites.push({
-          hash: commit.hash,
-          originalMessage: commit.message,
-          newMessage: generated.message,
-        })
+    // Dry-run: show preview without executing
+    if (flags['dry-run']) {
+      this.log('\n--- Dry Run: Would apply these rewrites ---')
+      for (const r of selectedRewrites) {
+        this.log(`${r.hash.substring(0, 7)}: ${r.originalMessage} -> ${r.newMessage}`)
       }
-    } else {
-      // Show interactive selector with live generation
-      const selected = await selectCommits(
-        commits.map(c => ({ hash: c.hash, message: c.message })),
-        async commit => {
-          const fullCommit = commits.find(c => c.hash === commit.hash)
-          if (!fullCommit) {
-            return commit.message
-          }
-          const generated = await generateCommitMessage(fullCommit, config)
-          return generated.message
-        }
-      )
-      if (!selected) {
-        this.log('Aborted.')
-        return
-      }
-      selectedRewrites = selected
-      if (selectedRewrites.length === 0) {
-        this.log('No commits selected.')
-        return
-      }
+      this.log('--- End dry run ---\n')
+      return
     }
 
     // Execute rebase
