@@ -775,6 +775,11 @@
   resolved "https://registry.yarnpkg.com/@biomejs/cli-win32-x64/-/cli-win32-x64-2.3.14.tgz#44405162f255fe153a5ff99379510c058bf7a1e8"
   integrity sha512-oizCjdyQ3WJEswpb3Chdngeat56rIdSYK12JI3iI11Mt5T5EXcZ7WLuowzEaFPNJ3zmOQFliMN8QY1Pi+qsfdQ==
 
+"@byteland/ink-scroll-bar@^1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@byteland/ink-scroll-bar/-/ink-scroll-bar-1.0.0.tgz#4ad94dd18473b16039d3b960734b95c574e1c548"
+  integrity sha512-5wfUK9H6iQI3v66uk7nQ3mJIahooA2oYpVKc5PtXMb68+z8EbWFT15wxVSJ9/x8an8oGgeGvdJcLCKdv9bjVdg==
+
 "@cspotcode/source-map-support@^0.8.0":
   version "0.8.1"
   resolved "https://registry.yarnpkg.com/@cspotcode/source-map-support/-/source-map-support-0.8.1.tgz#00629c35a688e05a88b1cda684fb9d5e73f000a1"
