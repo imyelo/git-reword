@@ -9,11 +9,12 @@ export interface RewordResult {
   commit: string
   originalMessage: string
   newMessage: string
+  newBody: string
   error?: string
 }
 
 export async function executeRewordRebase(
-  commits: Array<{ hash: string; newMessage: string }>
+  commits: Array<{ hash: string; newMessage: string; newBody: string }>
 ): Promise<RewordResult[]> {
   const results: RewordResult[] = []
 
@@ -35,15 +36,17 @@ export async function executeRewordRebase(
     for (const commit of commits) {
       const entries = await getGitLog(git, `${commit.hash}^..${commit.hash}`)
       const entry = entries[0]
+      const fullMessage = composeCommitMessage(commit.newMessage, commit.newBody)
       results.push({
         success: true,
         commit: commit.hash,
         originalMessage: entry?.body || entry?.subject || '',
-        newMessage: commit.newMessage,
+        newMessage: fullMessage,
+        newBody: commit.newBody,
       })
 
       const msgFile = join(tempDir, `${commit.hash}.msg`)
-      writeFileSync(msgFile, commit.newMessage, { mode: 0o600 })
+      writeFileSync(msgFile, fullMessage, { mode: 0o600 })
     }
 
     const rebaseTodo = commits
@@ -84,4 +87,11 @@ export async function executeRewordRebase(
   }
 
   return results
+}
+
+function composeCommitMessage(subject: string, body: string): string {
+  if (!body || body.trim() === '') {
+    return subject
+  }
+  return `${subject}\n\n${body}`
 }

@@ -6,6 +6,7 @@ interface CommitRewrite {
   hash: string
   originalMessage: string
   newMessage?: string // Optional - may not be generated yet
+  newBody?: string
 }
 
 interface Props {
@@ -75,7 +76,17 @@ export const CommitSelector: React.FC<Props> = ({ rewrites }) => {
             >
               <Text color={isFocused ? 'black' : 'gray'}>old: {rewrite.originalMessage}</Text>
               {isGenerated ? (
-                <Text color={isFocused ? 'black' : 'green'}>new: {rewrite.newMessage}</Text>
+                <Box flexDirection="column">
+                  <Text color={isFocused ? 'black' : 'green'}>new: {rewrite.newMessage}</Text>
+                  {rewrite.newBody && (
+                    <Text
+                      color={isFocused ? 'black' : 'green'}
+                      dimColor
+                    >
+                      {rewrite.newBody}
+                    </Text>
+                  )}
+                </Box>
               ) : (
                 <Text
                   color="gray"

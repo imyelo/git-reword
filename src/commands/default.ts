@@ -8,28 +8,29 @@ import type { Commit } from '../types.js'
 import { selectCommits } from '../ui/render-selector.jsx'
 import { confirm } from '../ui.js'
 
-type RewriteResult = Array<{ hash: string; originalMessage: string; newMessage: string }>
+type RewriteResult = Array<{ hash: string; originalMessage: string; newMessage: string; newBody: string }>
 
 // Generate commit message rewrites (shared by dry-run and normal mode)
 async function generateRewrites(commits: Commit[], flags: ParsedFlags, config: Config): Promise<RewriteResult | null> {
   const generateMessage = async (commit: { hash: string; message: string }) => {
     const fullCommit = commits.find(c => c.hash === commit.hash)
     if (!fullCommit) {
-      return commit.message
+      return { message: commit.message, body: '' }
     }
     const generated = await generateCommitMessage(fullCommit, config)
-    return generated.message
+    return { message: generated.subject, body: generated.body }
   }
 
   if (flags.yes) {
     // Skip selector, generate all
     const rewrites: RewriteResult = []
     for (const commit of commits) {
-      const newMessage = await generateMessage({ hash: commit.hash, message: commit.message })
+      const result = await generateMessage({ hash: commit.hash, message: commit.message })
       rewrites.push({
         hash: commit.hash,
         originalMessage: commit.message,
-        newMessage,
+        newMessage: result.message,
+        newBody: result.body,
       })
     }
     return rewrites
@@ -48,6 +49,7 @@ async function generateRewrites(commits: Commit[], flags: ParsedFlags, config: C
     console.log('No commits selected.')
     return null
   }
+
   return selected
 }
 
@@ -183,7 +185,9 @@ class MainCommand extends Command {
     }
 
     // Execute rebase
-    const results = await executeRewordRebase(selectedRewrites.map(r => ({ hash: r.hash, newMessage: r.newMessage })))
+    const results = await executeRewordRebase(
+      selectedRewrites.map(r => ({ hash: r.hash, newMessage: r.newMessage, newBody: r.newBody }))
+    )
 
     // Report results
     let successCount = 0
@@ -211,14 +215,16 @@ class MainCommand extends Command {
     const diff = await git.diff(['--staged', '-p'])
 
     const generated = await generateStagedMessage(diff, config)
+    const fullMessage = generated.body ? `${generated.subject}\n\n${generated.body}` : generated.subject
+
     this.log(`\nSuggested message:\n`)
-    this.log(generated.message)
+    this.log(fullMessage)
     this.log(`\n`)
 
     if (!flags.yes) {
       const response = await confirm('Apply this commit? [y/n] ')
       if (response) {
-        await git.commit(generated.message)
+        await git.commit(fullMessage)
         this.log('Committed!')
       } else {
         this.log('Commit cancelled.')

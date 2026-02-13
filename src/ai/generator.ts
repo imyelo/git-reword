@@ -8,14 +8,15 @@ import { getSimpleGit } from '../git/simple-git.js'
 import type { Commit } from '../types.js'
 
 const messageSchema = z.object({
-  message: z.string().describe('Conventional commit message (type(scope): description)'),
+  subject: z.string().describe('Conventional commit subject line (type(scope): description)'),
+  body: z.string().describe('Commit body/description (optional, leave empty if not needed)'),
   reasoning: z.string().optional().describe('Brief explanation of the message choice'),
 })
 
 export async function generateCommitMessage(
   commit: Commit,
   config: Config
-): Promise<{ message: string; reasoning?: string }> {
+): Promise<{ subject: string; body: string; reasoning?: string }> {
   const provider = getProvider(config)
 
   const diff = await getCommitDiff(commit.hash)
@@ -26,13 +27,13 @@ export async function generateCommitMessage(
     prompt: PROMPTS.rewrite(commit.message, commit.body, diff),
   })
 
-  return { message: result.object.message, reasoning: result.object.reasoning }
+  return { subject: result.object.subject, body: result.object.body, reasoning: result.object.reasoning }
 }
 
 export async function generateStagedMessage(
   diff: string,
   config: Config
-): Promise<{ message: string; reasoning?: string }> {
+): Promise<{ subject: string; body: string; reasoning?: string }> {
   const provider = getProvider(config)
 
   const result = await generateObject({
@@ -41,7 +42,7 @@ export async function generateStagedMessage(
     prompt: PROMPTS.staged(diff),
   })
 
-  return { message: result.object.message, reasoning: result.object.reasoning }
+  return { subject: result.object.subject, body: result.object.body, reasoning: result.object.reasoning }
 }
 
 const BASE_PROMPT = `Requirements:
@@ -51,15 +52,17 @@ const BASE_PROMPT = `Requirements:
 
 const PROMPTS = {
   rewrite: (message: string, body: string | undefined, diff: string) =>
-    `Rewrite this commit message to follow Conventional Commits.
+    `Rewrite this commit message to follow Conventional Commits. Optimize both the subject line and body.
 
-Original message:
+Original subject:
 ${message}
-${body ? `Body:\n${body}\n` : ''}Diff:
+${body ? `Original body:\n${body}\n` : ''}Diff:
 ${diff}
 
 ${BASE_PROMPT}
-- Keep the same semantic intent`,
+- Keep the same semantic intent
+- Output both "subject" (the commit line) and "body" (detailed description)
+- If the original body is not needed or can be merged into the subject, return an empty body`,
 
   staged: (diff: string) =>
     `Generate a conventional commit message for these staged changes.
@@ -67,7 +70,8 @@ ${BASE_PROMPT}
 Diff:
 ${diff}
 
-${BASE_PROMPT}`,
+${BASE_PROMPT}
+- Output both "subject" (the commit line) and "body" (detailed description)`,
 }
 const DEFAULT_MODELS = {
   anthropic: 'claude-sonnet-4-20250514',

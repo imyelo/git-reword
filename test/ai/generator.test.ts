@@ -32,7 +32,7 @@ describe('ai generator', () => {
     const { generateObject } = await import('ai')
 
     ;(generateObject as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      object: { message: 'fix(auth): resolve login timeout', reasoning: 'More specific scope' },
+      object: { subject: 'fix(auth): resolve login timeout', body: '', reasoning: 'More specific scope' },
     })
 
     const commit = {
@@ -44,7 +44,8 @@ describe('ai generator', () => {
 
     const result = await generateCommitMessage(commit, baseConfig)
 
-    expect(result.message).toBe('fix(auth): resolve login timeout')
+    expect(result.subject).toBe('fix(auth): resolve login timeout')
+    expect(result.body).toBe('')
     expect(result.reasoning).toBe('More specific scope')
     expect(generateObject).toHaveBeenCalledTimes(1)
   })
@@ -53,14 +54,15 @@ describe('ai generator', () => {
     const { generateObject } = await import('ai')
 
     ;(generateObject as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      object: { message: 'feat(ui): add new button component' },
+      object: { subject: 'feat(ui): add new button component', body: 'Added a new button component with hover states' },
     })
 
     const diff = 'diff --git a/button.ts b/button.ts\n+export const Button = () => {}'
 
     const result = await generateStagedMessage(diff, baseConfig)
 
-    expect(result.message).toBe('feat(ui): add new button component')
+    expect(result.subject).toBe('feat(ui): add new button component')
+    expect(result.body).toBe('Added a new button component with hover states')
     expect(generateObject).toHaveBeenCalledTimes(1)
   })
 
@@ -68,7 +70,7 @@ describe('ai generator', () => {
     const { generateObject } = await import('ai')
 
     ;(generateObject as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      object: { message: 'chore: update config' },
+      object: { subject: 'chore: update config', body: '' },
     })
 
     const anthropicConfig: Config = { provider: 'anthropic', model: 'claude-sonnet-4' }
@@ -81,14 +83,14 @@ describe('ai generator', () => {
 
     const result = await generateCommitMessage(commit, anthropicConfig)
 
-    expect(result.message).toBe('chore: update config')
+    expect(result.subject).toBe('chore: update config')
   })
 
   it('should handle missing reasoning', async () => {
     const { generateObject } = await import('ai')
 
     ;(generateObject as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      object: { message: 'docs: update readme' },
+      object: { subject: 'docs: update readme', body: '' },
     })
 
     const commit = {
@@ -100,7 +102,8 @@ describe('ai generator', () => {
 
     const result = await generateCommitMessage(commit, baseConfig)
 
-    expect(result.message).toBe('docs: update readme')
+    expect(result.subject).toBe('docs: update readme')
+    expect(result.body).toBe('')
     expect(result.reasoning).toBeUndefined()
   })
 
@@ -108,7 +111,7 @@ describe('ai generator', () => {
     const { generateObject } = await import('ai')
 
     ;(generateObject as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      object: { message: 'refactor: simplify code' },
+      object: { subject: 'refactor: simplify code', body: '' },
     })
 
     const commit = {

@@ -6,6 +6,7 @@ interface CommitRewrite {
   hash: string
   originalMessage: string
   newMessage?: string
+  newBody?: string
 }
 
 const _updateCallback: ((rewrites: CommitRewrite[]) => void) | null = null
@@ -27,8 +28,8 @@ export function createCommitSelector(rewrites: CommitRewrite[]) {
 
 export async function selectCommits(
   commits: Array<{ hash: string; message: string }>,
-  onGenerate: (commit: { hash: string; message: string }) => Promise<string>
-): Promise<Array<{ hash: string; originalMessage: string; newMessage: string }> | null> {
+  onGenerate: (commit: { hash: string; message: string }) => Promise<{ message: string; body: string }>
+): Promise<Array<{ hash: string; originalMessage: string; newMessage: string; newBody: string }> | null> {
   // Initialize with all commits (no newMessage yet)
   const rewrites: CommitRewrite[] = commits.map(c => ({
     hash: c.hash,
@@ -78,11 +79,12 @@ export async function selectCommits(
 
       for (let i = 0; i < commits.length; i++) {
         const commit = commits[i]
-        const newMessage = await onGenerate(commit)
+        const result = await onGenerate(commit)
         generatedRewrites[i] = {
           hash: commit.hash,
           originalMessage: commit.message,
-          newMessage,
+          newMessage: result.message,
+          newBody: result.body,
         }
         // Update the UI
         render(React.createElement(App, { rewrites: generatedRewrites }))
