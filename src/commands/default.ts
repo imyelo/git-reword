@@ -4,7 +4,7 @@ import { type Config, loadConfig } from '../config.js'
 import { checkUncommittedChanges, getCommits } from '../git/index.js'
 import { getSimpleGit } from '../git/simple-git.js'
 import { executeRewordRebase } from '../rebase/index.js'
-import { selectCommits } from '../ui/render-selector.js'
+import { selectCommits } from '../ui/render-selector.jsx'
 import { confirm } from '../ui.js'
 
 // Flags interface for runtime parsed values (after oclif processing)
@@ -78,31 +78,41 @@ class MainCommand extends Command {
     const options = commit ? { commit } : flags.last ? { last: flags.last } : {}
     const commits = await getCommits(options)
 
-    // Generate new messages
-    const rewrites: Array<{ hash: string; originalMessage: string; newMessage: string }> = []
+    // Generate new messages with interactive UI
+    let selectedRewrites: Array<{ hash: string; originalMessage: string; newMessage: string }> = []
 
-    for (const commit of commits) {
-      const generated = await generateCommitMessage(commit, config)
-      if (flags['dry-run']) {
+    if (flags['dry-run']) {
+      for (const commit of commits) {
+        const generated = await generateCommitMessage(commit, config)
         this.log(`[DRY-RUN] ${commit.shortHash}: ${commit.message} -> ${generated.message}`)
-      } else {
-        rewrites.push({
+      }
+      this.log('Dry run complete. Run without --dry-run to apply changes.')
+      return
+    }
+
+    if (flags.yes) {
+      // Skip selector, generate all and apply
+      for (const commit of commits) {
+        const generated = await generateCommitMessage(commit, config)
+        selectedRewrites.push({
           hash: commit.hash,
           originalMessage: commit.message,
           newMessage: generated.message,
         })
       }
-    }
-
-    if (flags['dry-run']) {
-      this.log('Dry run complete. Run without --dry-run to apply changes.')
-      return
-    }
-
-    // Show interactive selector
-    let selectedRewrites = rewrites
-    if (!flags.yes) {
-      const selected = await selectCommits(rewrites)
+    } else {
+      // Show interactive selector with live generation
+      const selected = await selectCommits(
+        commits.map(c => ({ hash: c.hash, message: c.message })),
+        async commit => {
+          const fullCommit = commits.find(c => c.hash === commit.hash)
+          if (!fullCommit) {
+            return commit.message
+          }
+          const generated = await generateCommitMessage(fullCommit, config)
+          return generated.message
+        }
+      )
       if (!selected) {
         this.log('Aborted.')
         return
