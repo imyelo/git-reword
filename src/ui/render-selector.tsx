@@ -10,10 +10,20 @@ interface CommitRewrite {
   newBody?: string
 }
 
-const _updateCallback: ((rewrites: CommitRewrite[]) => void) | null = null
+interface AppProps {
+  rewrites: CommitRewrite[]
+  onSubmit?: (results: CommitRewrite[]) => void
+  onCancel?: () => void
+}
 
-const App: React.FC<{ rewrites: CommitRewrite[] }> = ({ rewrites }) => {
-  return <CommitSelector rewrites={rewrites} />
+const App: React.FC<AppProps> = ({ rewrites, onSubmit, onCancel }) => {
+  return (
+    <CommitSelector
+      rewrites={rewrites}
+      onSubmit={onSubmit}
+      onCancel={onCancel}
+    />
+  )
 }
 
 export function createCommitSelector(rewrites: CommitRewrite[]) {
@@ -45,38 +55,28 @@ export async function selectCommits(
   }))
 
   return new Promise(resolve => {
-    // Render with initial state (all old messages, no new messages)
-    const { unmount } = render(React.createElement(App, { rewrites }))
-
-    // Listen for output from the component
-    const originalLog = console.log
-    console.log = (...args: unknown[]) => {
-      const output = args.join(' ')
-      if (output.startsWith('__SELECTED__:')) {
-        try {
-          const selected = JSON.parse(output.replace('__SELECTED__:', ''))
-          unmount()
-          console.log = originalLog
-          resolve(selected)
-        } catch {
-          // Ignore parse errors
-        }
-      }
-      originalLog(...args)
+    const handleSubmit = (results: CommitRewrite[]) => {
+      unmount()
+      resolve(
+        results as Array<{
+          hash: string
+          originalMessage: string
+          originalBody?: string
+          newMessage: string
+          newBody: string
+        }>
+      )
     }
 
-    // Handle process exit
-    const originalExit = process.exit
-    process.exit = ((code?: number | string) => {
+    const handleCancel = () => {
       unmount()
-      console.log = originalLog
-      process.exit = originalExit
-      if (code === 1 || code === '1') {
-        resolve(null)
-      } else {
-        originalExit(code)
-      }
-    }) as typeof process.exit
+      resolve(null)
+    }
+
+    // Render with initial state
+    const { rerender, unmount } = render(
+      React.createElement(App, { rewrites, onSubmit: handleSubmit, onCancel: handleCancel })
+    )
 
     // Generate new messages serially, updating UI after each
     ;(async () => {
@@ -97,7 +97,13 @@ export async function selectCommits(
           newBody: result.body,
         }
         // Update the UI
-        render(React.createElement(App, { rewrites: generatedRewrites }))
+        rerender(
+          React.createElement(App, {
+            rewrites: generatedRewrites,
+            onSubmit: handleSubmit,
+            onCancel: handleCancel,
+          })
+        )
       }
     })()
   })

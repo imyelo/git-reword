@@ -12,6 +12,8 @@ interface CommitRewrite {
 
 interface Props {
   rewrites: CommitRewrite[]
+  onSubmit?: (results: CommitRewrite[]) => void
+  onCancel?: () => void
 }
 
 type Version = 'old' | 'new'
@@ -195,7 +197,7 @@ const ConfirmBar: React.FC<{
 )
 
 // ─── Main Selector ─────────────────────────────────────────────────
-export const CommitSelector: React.FC<Props> = ({ rewrites }) => {
+export const CommitSelector: React.FC<Props> = ({ rewrites, onSubmit, onCancel }) => {
   const { stdout } = useStdout()
   const [focusedIndex, setFocusedIndex] = useState(0)
   const [focusedColumn, setFocusedColumn] = useState<Version>('new')
@@ -259,8 +261,7 @@ export const CommitSelector: React.FC<Props> = ({ rewrites }) => {
               newBody: version === 'new' ? (r.newBody ?? '') : (r.originalBody ?? ''),
             }
           })
-          console.log(`__SELECTED__:${JSON.stringify(results)}`)
-          process.exit(0)
+          onSubmit?.(results)
         } else {
           // Cancel: return to select mode
           setUiMode('select')
@@ -296,7 +297,7 @@ export const CommitSelector: React.FC<Props> = ({ rewrites }) => {
       setConfirmFocused(true)
       setUiMode('confirm')
     } else if (input === 'q' || input === 'Q' || key.escape) {
-      process.exit(1)
+      onCancel?.()
     }
   })
 
