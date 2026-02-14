@@ -45,10 +45,6 @@ async function generateRewrites(commits: Commit[], flags: ParsedFlags, config: C
   if (!selected) {
     return null // Aborted
   }
-  if (selected.length === 0) {
-    console.log('No commits selected.')
-    return null
-  }
 
   return selected
 }
