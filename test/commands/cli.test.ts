@@ -78,4 +78,18 @@ describe('CLI generateRewrites', () => {
 
     await expect(getCommits({ since: 'invalid-ref' })).rejects.toThrow("fatal: invalid commit 'invalid-ref'")
   })
+
+  it('should return rewrites when dry-run is true', async () => {
+    const { generateObject } = await import('ai')
+    ;(generateObject as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      object: { subject: 'feat: add new feature', body: '' },
+    })
+
+    const flags = { yes: true, 'dry-run': true, staged: false, 'skip-check': false }
+    const result = await generateRewrites(mockCommits, flags, baseConfig)
+
+    // dry-run doesn't affect generation, just execution
+    expect(result).toHaveLength(1)
+    expect(result?.[0].newMessage).toBe('feat: add new feature')
+  })
 })
