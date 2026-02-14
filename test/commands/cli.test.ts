@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import MainCommand from '../../src/commands/default'
 import { generateRewrites } from '../../src/commands/default'
 import type { Config } from '../../src/config'
 import type { Commit } from '../../src/types'
@@ -25,6 +26,13 @@ describe('generateRewrites export', () => {
   })
 })
 
+describe('MainCommand export', () => {
+  it('should export MainCommand with correct summary', () => {
+    expect(MainCommand).toBeDefined()
+    expect(MainCommand.summary).toBe('AI-powered Git commit message rewriter')
+  })
+})
+
 describe('CLI generateRewrites', () => {
   const baseConfig: Config = {
     provider: 'openai',
@@ -36,7 +44,7 @@ describe('CLI generateRewrites', () => {
       hash: 'abc123def456',
       shortHash: 'abc123d',
       message: 'fix bug',
-      body: undefined,
+      body: '',
     },
   ]
 
@@ -50,7 +58,7 @@ describe('CLI generateRewrites', () => {
       object: { subject: 'fix(auth): resolve login timeout', body: '' },
     })
 
-    const flags = { yes: true, 'dry-run': false }
+    const flags = { yes: true, 'dry-run': false, staged: false, 'skip-check': false }
     const result = await generateRewrites(mockCommits, flags, baseConfig)
 
     expect(result).toHaveLength(1)
