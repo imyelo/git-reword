@@ -5,5 +5,6 @@ export default defineConfig({
     setupFiles: ['./vitest.setup.js'],
     environment: 'node',
     onUnhandledReject: 'warn',
+    exclude: ['**/.worktrees/**', '**/node_modules/**'],
   },
 })
