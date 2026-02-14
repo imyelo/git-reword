@@ -139,5 +139,4 @@ describe('CLI generateRewrites', () => {
     const result = await checkUncommittedChanges()
     expect(result).toBe(true)
   })
-
 })
