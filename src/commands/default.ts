@@ -233,4 +233,5 @@ class MainCommand extends Command {
   }
 }
 
+export { MainCommand, generateRewrites }
 export default MainCommand
