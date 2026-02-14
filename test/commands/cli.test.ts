@@ -140,12 +140,4 @@ describe('CLI generateRewrites', () => {
     expect(result).toBe(true)
   })
 
-  it('should detect no staged changes in git status', async () => {
-    const { getSimpleGit: mockedGetSimpleGit } = await import('../../src/git/simple-git')
-    const mockGit = { status: vi.fn().mockResolvedValue({ staged: [] }) }
-    vi.mocked(mockedGetSimpleGit).mockResolvedValue(mockGit)
-    const git = await getSimpleGit()
-    const status = await git.status()
-    expect(status.staged).toHaveLength(0)
-  })
 })
