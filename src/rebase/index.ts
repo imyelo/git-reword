@@ -24,15 +24,21 @@ export async function executeRewordRebase(
   }
 
   const git = await getSimpleGit(cwd)
-  const firstCommit = commits[0]
-  if (!firstCommit) {
-    return results
-  }
 
   try {
-    // Get the parent of the first commit to reword
-    const firstHash = firstCommit.hash
-    const base = `${firstHash}^`
+    // Find the oldest commit among the ones to reword
+    // Use git merge-base to find the common ancestor, then get its parent
+    const hashes = commits.map(c => c.hash)
+    let oldestHash = hashes[0]
+    for (const hash of hashes) {
+      // Check if hash is ancestor of current oldest
+      const result = (await git.raw(['merge-base', '--is-ancestor', hash, oldestHash])) as unknown as { exitCode: number }
+      if (result.exitCode === 0) {
+        oldestHash = hash
+      }
+    }
+
+    const base = `${oldestHash}^`
 
     // Get all commits in the range (base..HEAD)
     const allCommitsInRange = await getGitLog(git, `${base}..HEAD`)
