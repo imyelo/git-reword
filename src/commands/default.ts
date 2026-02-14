@@ -1,6 +1,7 @@
 import { Args, Command, Flags } from '@oclif/core'
+import inquirer from 'inquirer'
 import { generateCommitMessage, generateStagedMessage } from '../ai/generator.js'
-import { type Config, loadConfig } from '../config.js'
+import { type Config, hasConfig, loadConfig, saveConfig } from '../config.js'
 import { checkBranchContains, checkUncommittedChanges, getCommits } from '../git/index.js'
 import { getSimpleGit } from '../git/simple-git.js'
 import { executeRewordRebase } from '../rebase/index.js'
@@ -59,6 +60,7 @@ interface ParsedFlags {
   last?: number
   since?: string
   'skip-check': boolean
+  config: boolean
 }
 
 class MainCommand extends Command {
@@ -102,22 +104,102 @@ class MainCommand extends Command {
       description: 'Reword commits from the commit after this ref to HEAD',
     }),
     'skip-check': Flags.boolean({
-      char: 'c',
+      char: 'k',
       description: 'Skip uncommitted changes check (for debugging)',
+      default: false,
+    }),
+    config: Flags.boolean({
+      char: 'c',
+      description: 'Configure git-reword settings interactively',
       default: false,
     }),
   }
 
   async run() {
     const { args, flags } = await this.parse(MainCommand)
-    const config = await loadConfig()
     const parsed = flags as ParsedFlags
+
+    if (parsed.config) {
+      return this.runConfig()
+    }
+
+    // Check if config exists, prompt user to configure if not
+    if (!(await hasConfig())) {
+      const response = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'configure',
+          message: 'No configuration found. Would you like to configure git-reword now?',
+          default: true,
+        },
+      ])
+
+      if (response.configure) {
+        return this.runConfig()
+      }
+      this.error('Configuration required. Run `git-reword --config` to configure.')
+    }
+
+    const config = await loadConfig()
 
     if (parsed.staged) {
       return this.runStaged(parsed, config)
     }
 
     return this.runReword(args.ref, parsed, config)
+  }
+
+  private async runConfig() {
+    let currentConfig: Config = {}
+    try {
+      currentConfig = await loadConfig()
+    } catch {
+      // No config yet
+    }
+
+    // biome-disable-next-line lint/suspicious/noExplicitAny
+    const questions: any = [
+      {
+        type: 'list',
+        name: 'provider',
+        message: 'Select AI provider',
+        choices: ['openai', 'anthropic', 'google'],
+        default: currentConfig.provider || 'openai',
+      },
+      {
+        type: 'input',
+        name: 'model',
+        message: 'Model name (optional, press Enter to skip)',
+        default: currentConfig.model || '',
+      },
+      {
+        type: 'input',
+        name: 'apiKey',
+        message: 'API Key (optional, press Enter to skip)',
+        default: currentConfig.apiKey || '',
+      },
+      {
+        type: 'input',
+        name: 'baseUrl',
+        message: 'Base URL (optional, for custom endpoints)',
+        default: currentConfig.baseUrl || '',
+      },
+      {
+        type: 'input',
+        name: 'systemPrompt',
+        message: 'System prompt (optional)',
+        default: currentConfig.systemPrompt || '',
+      },
+    ]
+
+    const answers = await inquirer.prompt(questions)
+    const newConfig = Object.fromEntries(
+      Object.entries(answers).filter(([, v]) => v !== undefined && v !== '')
+    ) as Config
+
+    await saveConfig(newConfig)
+    this.log('\nConfiguration saved to ~/.git-rewordrc')
+    this.log('You can also edit this file directly.')
   }
 
   private async runReword(ref: string | undefined, flags: ParsedFlags, config: Config) {

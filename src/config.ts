@@ -1,4 +1,4 @@
-import { loadConfig as loadC12 } from 'c12'
+import { readUser, writeUser } from 'rc9'
 import { z } from 'zod'
 
 const configSchema = z.object({
@@ -13,12 +13,28 @@ const configSchema = z.object({
 
 export type Config = z.infer<typeof configSchema>
 
+const CONFIG_NAME = '.git-rewordrc'
+
 export async function loadConfig(): Promise<Config> {
-  const { config } = await loadC12({
-    name: 'git-reword',
-    globalRc: true,
-  })
-  return configSchema.parse(config || {})
+  // rc9 reads ~/.git-rewordrc automatically using readUser
+  const rawConfig = await readUser(CONFIG_NAME)
+  return configSchema.parse(rawConfig)
+}
+
+export async function saveConfig(config: Config): Promise<void> {
+  // rc9 writes config in key=value format automatically
+  await writeUser(config, CONFIG_NAME)
+}
+
+export async function hasConfig(): Promise<boolean> {
+  const fs = await import('node:fs/promises')
+  const { homedir } = await import('node:os')
+  try {
+    await fs.access(`${homedir()}/${CONFIG_NAME}`)
+    return true
+  } catch {
+    return false
+  }
 }
 
 export function getProviderConfig(config: Config) {

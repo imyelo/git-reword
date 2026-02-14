@@ -73,7 +73,7 @@ describe('CLI generateRewrites', () => {
       object: { subject: 'fix(auth): resolve login timeout', body: '' },
     })
 
-    const flags = { yes: true, 'dry-run': false, staged: false, 'skip-check': false }
+    const flags = { yes: true, 'dry-run': false, staged: false, 'skip-check': false, config: false }
     const result = await generateRewrites(mockCommits, flags, baseConfig)
 
     expect(result).toHaveLength(1)
@@ -94,7 +94,7 @@ describe('CLI generateRewrites', () => {
       object: { subject: 'feat: add new feature', body: '' },
     })
 
-    const flags = { yes: true, 'dry-run': true, staged: false, 'skip-check': false }
+    const flags = { yes: true, 'dry-run': true, staged: false, 'skip-check': false, config: false }
     const result = await generateRewrites(mockCommits, flags, baseConfig)
 
     // dry-run doesn't affect generation, just execution
@@ -112,14 +112,14 @@ describe('CLI generateRewrites', () => {
       { hash: 'abc123', shortHash: 'abc123', message: 'fix bug', body: '' },
       { hash: 'def456', shortHash: 'def456', message: 'add feature', body: '' },
     ]
-    const flags = { yes: true, 'dry-run': false, staged: false, 'skip-check': false }
+    const flags = { yes: true, 'dry-run': false, staged: false, 'skip-check': false, config: false }
     const result = await generateRewrites(commits, flags, baseConfig)
     expect(result).toHaveLength(2)
     expect(generateObject).toHaveBeenCalledTimes(2)
   })
 
   it('should handle empty commits array', async () => {
-    const flags = { yes: true, 'dry-run': false, staged: false, 'skip-check': false }
+    const flags = { yes: true, 'dry-run': false, staged: false, 'skip-check': false, config: false }
     const result = await generateRewrites([], flags, baseConfig)
     expect(result).toHaveLength(0)
   })
