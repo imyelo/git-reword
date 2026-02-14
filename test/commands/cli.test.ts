@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import MainCommand, { generateRewrites } from '../../src/commands/default'
-import { getCommits } from '../../src/git/index'
 import type { Config } from '../../src/config'
+import { getCommits } from '../../src/git/index'
 import type { Commit } from '../../src/types'
 
 // Mock getCommits
@@ -74,12 +74,8 @@ describe('CLI generateRewrites', () => {
 
   it('should throw error for invalid --since ref', async () => {
     const { getCommits: mockedGetCommits } = await import('../../src/git/index')
-    ;(mockedGetCommits as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error("fatal: invalid commit 'invalid-ref'")
-    )
+    ;(mockedGetCommits as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("fatal: invalid commit 'invalid-ref'"))
 
-    await expect(
-      getCommits({ since: 'invalid-ref' })
-    ).rejects.toThrow("fatal: invalid commit 'invalid-ref'")
+    await expect(getCommits({ since: 'invalid-ref' })).rejects.toThrow("fatal: invalid commit 'invalid-ref'")
   })
 })
