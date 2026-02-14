@@ -91,10 +91,11 @@ export async function executeRewordRebase(
       // Get tree hash
       const treeHash = (await git.raw(['rev-parse', `${hash}^{tree}`])).trim()
 
-      // Get author info
       // Get author info (for preserving original author)
       const authorInfo = (await git.raw(['log', '-1', '--format=%an <%ae>', hash])).trim()
-      const [authorName, authorEmail] = authorInfo.split(' ')
+      const authorMatch = authorInfo.match(/^(.+?)\s+<(.+?)>$/)
+      const authorName = authorMatch ? authorMatch[1] : authorInfo
+      const authorEmail = authorMatch ? authorMatch[2] : ''
 
       // Build new commit message
       const newMessage = composeCommitMessage(newSubject, newBody)
