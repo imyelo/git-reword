@@ -32,7 +32,9 @@ export async function executeRewordRebase(
     let oldestHash = hashes[0]
     for (const hash of hashes) {
       // Check if hash is ancestor of current oldest
-      const result = (await git.raw(['merge-base', '--is-ancestor', hash, oldestHash])) as unknown as { exitCode: number }
+      const result = (await git.raw(['merge-base', '--is-ancestor', hash, oldestHash])) as unknown as {
+        exitCode: number
+      }
       if (result.exitCode === 0) {
         oldestHash = hash
       }
