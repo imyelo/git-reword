@@ -1,8 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import MainCommand from '../../src/commands/default'
-import { generateRewrites } from '../../src/commands/default'
+import MainCommand, { generateRewrites } from '../../src/commands/default'
+import { getCommits } from '../../src/git/index'
 import type { Config } from '../../src/config'
 import type { Commit } from '../../src/types'
+
+// Mock getCommits
+vi.mock('../../src/git/index.js', () => ({
+  ...vi.importActual('../../src/git/index.js'),
+  getCommits: vi.fn(),
+}))
 
 // Mock simple-git
 vi.mock('../../src/git/simple-git.js', () => ({
@@ -64,5 +70,16 @@ describe('CLI generateRewrites', () => {
     expect(result).toHaveLength(1)
     expect(result?.[0].newMessage).toBe('fix(auth): resolve login timeout')
     expect(generateObject).toHaveBeenCalledTimes(1)
+  })
+
+  it('should throw error for invalid --since ref', async () => {
+    const { getCommits: mockedGetCommits } = await import('../../src/git/index')
+    ;(mockedGetCommits as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("fatal: invalid commit 'invalid-ref'")
+    )
+
+    await expect(
+      getCommits({ since: 'invalid-ref' })
+    ).rejects.toThrow("fatal: invalid commit 'invalid-ref'")
   })
 })
