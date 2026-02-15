@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { env } from 'node:process'
 import type { SimpleGit } from 'simple-git'
 import { getGitLog, getSimpleGit } from '../git/simple-git.js'
 
@@ -95,7 +96,21 @@ done
 
     rebaseArgs.push(base || 'HEAD')
 
-    await git.raw(rebaseArgs)
+    // Set GIT_EDITOR to a non-interactive command to prevent git from trying to open an editor
+    // This is required for git rebase -i to work in non-interactive environments
+    const originalEditor = env.GIT_EDITOR
+    env.GIT_EDITOR = 'true'
+
+    try {
+      await git.raw(rebaseArgs)
+    } finally {
+      // Restore original editor setting
+      if (originalEditor !== undefined) {
+        env.GIT_EDITOR = originalEditor
+      } else {
+        delete env.GIT_EDITOR
+      }
+    }
   } catch (error) {
     return results.map(
       (r): RewordResult => ({
