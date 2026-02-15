@@ -193,7 +193,7 @@ describe('rebase executor', () => {
       }
     })
 
-    it('should fail gracefully when rewording the root commit', async () => {
+    it('should reword the root commit successfully', async () => {
       const tempDir = await createTempGitRepo()
       try {
         const { exec } = await import('node:child_process')
@@ -203,14 +203,15 @@ describe('rebase executor', () => {
         // The initial commit created by createTempGitRepo is the root commit
         const hash = (await execAsync('git rev-parse HEAD', { cwd: tempDir })).stdout.trim()
 
-        // Reword the root commit — `hash^` does not exist, should result in an error
+        // Reword the root commit - the new implementation supports this via --root
         const results = await executeRewordRebase([{ hash, newMessage: 'reworded root', newBody: '' }], tempDir)
 
-        // Should handle gracefully (error result or empty array)
-        if (results.length > 0) {
-          expect(results[0]?.success).toBe(false)
-          expect(results[0]?.error).toBeDefined()
-        }
+        expect(results).toHaveLength(1)
+        expect(results[0]?.success).toBe(true)
+
+        // Verify the commit message was actually changed
+        const newMessage = (await execAsync('git log -1 --format=%s', { cwd: tempDir })).stdout.trim()
+        expect(newMessage).toBe('reworded root')
       } finally {
         await cleanupTempRepo(tempDir)
       }
