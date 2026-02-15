@@ -255,9 +255,14 @@ class MainCommand extends Command {
     if (flags['dry-run']) {
       this.log('\n--- Dry Run: Would apply these rewrites ---')
       for (const r of selectedRewrites) {
-        this.log(`${r.hash.substring(0, 7)}: ${r.originalMessage} -> ${r.newMessage}`)
+        this.log(`\n${r.hash.substring(0, 7)}:`)
+        this.log(`  original: ${r.originalMessage}`)
+        this.log(`  new:      ${r.newMessage}`)
+        if (r.newBody) {
+          this.log(`  body:     ${r.newBody.split('\n').join('\n          ')}`)
+        }
       }
-      this.log('--- End dry run ---\n')
+      this.log('\n--- End dry run ---\n')
       return
     }
 
