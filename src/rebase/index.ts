@@ -42,14 +42,15 @@ export async function executeRewordRebase(
 
   try {
     for (const commit of commits) {
-      const entries = await getGitLog(git, `${commit.hash}^..${commit.hash}`)
-      const entry = entries[0]
-      const originalSubject = entry?.subject || ''
+      const subject = (await git.raw(['log', '-1', '--format=%s', commit.hash])).trim()
+      const body = (await git.raw(['log', '-1', '--format=%b', commit.hash])).trim()
+
+      const originalSubject = subject
       const fullMessage = composeCommitMessage(commit.newMessage, commit.newBody)
       results.push({
         success: true,
         commit: commit.hash,
-        originalMessage: entry?.body || entry?.subject || '',
+        originalMessage: body || subject,
         newMessage: fullMessage,
         newBody: commit.newBody,
       })
