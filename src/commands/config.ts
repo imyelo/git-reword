@@ -1,5 +1,5 @@
 import { Command, Flags } from '@oclif/core'
-import inquirer from 'inquirer'
+import inquirer, { type Question } from 'inquirer'
 import { type Config, loadConfig, saveConfig } from '../config.js'
 
 export default class ConfigCommand extends Command {
@@ -41,8 +41,7 @@ export default class ConfigCommand extends Command {
       // No config yet, use empty object
     }
 
-    // biome-disable-next-line lint/suspicious/noExplicitAny
-    const questions: any = [
+    const questions: Question[] = [
       {
         type: 'list',
         name: 'provider',

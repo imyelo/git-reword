@@ -1,5 +1,5 @@
 import { Args, Command, Flags } from '@oclif/core'
-import inquirer from 'inquirer'
+import inquirer, { type Question } from 'inquirer'
 import { generateCommitMessage, generateStagedMessage } from '../ai/generator.js'
 import { type Config, hasConfig, loadConfig, saveConfig } from '../config.js'
 import { checkBranchContains, checkUncommittedChanges, getCommits } from '../git/index.js'
@@ -157,8 +157,7 @@ class MainCommand extends Command {
       // No config yet
     }
 
-    // biome-disable-next-line lint/suspicious/noExplicitAny
-    const questions: any = [
+    const questions: Question[] = [
       {
         type: 'list',
         name: 'provider',
