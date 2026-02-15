@@ -11,7 +11,8 @@
   },
   "types": "./lib/types/index.d.js",
   "files": [
-    "lib"
+    "lib",
+    "bin/run"
   ],
   "bin": {
     "git-reword": "./bin/run"
@@ -31,7 +32,7 @@
     "clean": "rimraf ./lib",
     "prebuild": "npm run clean",
     "build": "npm run clean && npm run build:cli && npm run build:esm && npm run build:types",
-    "build:cli": "tsc -p ./tsconfig.cli.json && node ./bin/copy-assets",
+    "build:cli": "tsc -p ./tsconfig.cli.json && node ./scripts/copy-assets",
     "build:esm": "tsc -p ./tsconfig.esm.json",
     "build:types": "tsc -p ./tsconfig.json --declaration --emitDeclarationOnly",
     "typecheck": "tsc --noEmit",
