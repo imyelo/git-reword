@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import type { SimpleGit } from 'simple-git'
 import { getGitLog, getSimpleGit } from '../git/simple-git.js'
 
 export interface RewordResult {
@@ -24,108 +25,76 @@ export async function executeRewordRebase(
   }
 
   const git = await getSimpleGit(cwd)
+  const firstCommit = commits[0]
+  if (!firstCommit) {
+    return results
+  }
+
+  // Check if first commit is a root commit (no parent)
+  const isRootCommit = await isRoot(git, firstCommit.hash)
+  const base = isRootCommit ? undefined : `${firstCommit.hash}^`
+
+  // Build a map from original subject to new message file
+  const subjectToMsgFile: Map<string, string> = new Map()
+
+  const tempDir = join(tmpdir(), `git-reword-${randomUUID()}`)
+  mkdirSync(tempDir, { mode: 0o700 })
 
   try {
-    // Find the oldest commit among the ones to reword
-    // Use git merge-base to find the common ancestor, then get its parent
-    const hashes = commits.map(c => c.hash)
-    let oldestHash = hashes[0]
-    for (const hash of hashes) {
-      // Check if hash is ancestor of current oldest
-      const result = (await git.raw(['merge-base', '--is-ancestor', hash, oldestHash])) as unknown as {
-        exitCode: number
-      }
-      if (result.exitCode === 0) {
-        oldestHash = hash
-      }
+    for (const commit of commits) {
+      const entries = await getGitLog(git, `${commit.hash}^..${commit.hash}`)
+      const entry = entries[0]
+      const originalSubject = entry?.subject || ''
+      const fullMessage = composeCommitMessage(commit.newMessage, commit.newBody)
+      results.push({
+        success: true,
+        commit: commit.hash,
+        originalMessage: entry?.body || entry?.subject || '',
+        newMessage: fullMessage,
+        newBody: commit.newBody,
+      })
+
+      const msgFile = join(tempDir, `${commit.hash}.msg`)
+      writeFileSync(msgFile, fullMessage, { mode: 0o600 })
+
+      // Map original subject to message file for matching during rebase
+      subjectToMsgFile.set(originalSubject, msgFile)
     }
 
-    const base = `${oldestHash}^`
+    // Generate a script that checks if current HEAD's subject matches one of the commits to reword
+    // Use subject instead of hash because commit hashes change after rebase
+    // Use ||| as delimiter since it's unlikely to appear in commit subjects
+    const msgFilesList = Array.from(subjectToMsgFile.entries())
+      .map(([subject, msgFile]) => `"${subject}|||${msgFile}"`)
+      .join(' ')
 
-    // Get all commits in the range (base..HEAD)
-    const allCommitsInRange = await getGitLog(git, `${base}..HEAD`)
-    // Reverse to process from oldest to newest
-    const commitList = allCommitsInRange.map(c => c.hash).reverse()
+    const scriptContent = `#!/bin/bash
+CURRENT_SUBJECT=$(git log -1 --format=%s)
+for item in ${msgFilesList}; do
+  subject=\${item%%|||*}
+  msgfile=\${item##*|||}
+  if [ "$CURRENT_SUBJECT" = "$subject" ]; then
+    exec git commit --amend -F "$msgfile" --no-verify
+  fi
+done
+`
+    const scriptPath = join(tempDir, 'rebase.sh')
+    writeFileSync(scriptPath, scriptContent, { mode: 0o600 })
 
-    // Build a map of commits to reword
-    const rewordMap = new Map(commits.map(c => [c.hash, c]))
+    // Build rebase command
+    const rebaseArgs: string[] = ['rebase', '-i', '--keep-empty', '--no-autosquash', '--no-autostash', '--no-verify']
 
-    // Note: We don't need to store the branch name as commit-tree creates detached commits
-
-    // Process each commit - use git commit-tree to create new commits
-    // This is more reliable than rebase
-    let parentHash = base
-    const newCommitHashes: string[] = []
-
-    for (const hash of commitList) {
-      // Get commit subject and body separately
-      const subject = (await git.raw(['log', '-1', '--format=%s', hash])).trim()
-      const body = (await git.raw(['log', '-1', '--format=%b', hash])).trim()
-
-      let newSubject = subject
-      let newBody = body
-
-      // Check if this commit should be rewording
-      const rewordCommit = rewordMap.get(hash)
-      if (rewordCommit) {
-        newSubject = rewordCommit.newMessage
-        newBody = rewordCommit.newBody
-
-        results.push({
-          success: true,
-          commit: hash,
-          originalMessage: body || subject,
-          newMessage: composeCommitMessage(newSubject, newBody),
-          newBody: newBody,
-        })
-      } else {
-        results.push({
-          success: true,
-          commit: hash,
-          originalMessage: body || subject,
-          newMessage: composeCommitMessage(subject, body),
-          newBody: body,
-        })
-      }
-
-      // Get tree hash
-      const treeHash = (await git.raw(['rev-parse', `${hash}^{tree}`])).trim()
-
-      // Get author info (for preserving original author)
-      const authorInfo = (await git.raw(['log', '-1', '--format=%an <%ae>', hash])).trim()
-      const authorMatch = authorInfo.match(/^(.+?)\s+<(.+?)>$/)
-      const authorName = authorMatch ? authorMatch[1] : authorInfo
-      const authorEmail = authorMatch ? authorMatch[2] : ''
-
-      // Build new commit message
-      const newMessage = composeCommitMessage(newSubject, newBody)
-
-      // Create new commit with git commit-tree
-      // Author info must be passed via environment variable
-      const newHash = (
-        await git.raw([
-          '-c',
-          `user.name=${authorName}`,
-          '-c',
-          `user.email=${authorEmail}`,
-          'commit-tree',
-          treeHash,
-          '-p',
-          parentHash,
-          '-m',
-          newMessage,
-        ])
-      ).trim()
-
-      newCommitHashes.push(newHash)
-      parentHash = newHash
+    // Only use --root if first commit is root commit
+    if (isRootCommit) {
+      rebaseArgs.push('--root')
     }
 
-    // Update branch to point to new commits
-    if (newCommitHashes.length > 0) {
-      const newHead = newCommitHashes[newCommitHashes.length - 1]
-      await git.reset(['--hard', newHead])
-    }
+    // Use -x to execute the script after each commit
+    rebaseArgs.push('-x', `bash "${scriptPath}"`)
+
+    rebaseArgs.push(base || 'HEAD')
+
+    await git.raw(rebaseArgs)
   } catch (error) {
     return results.map(
       (r): RewordResult => ({
@@ -137,6 +106,16 @@ export async function executeRewordRebase(
   }
 
   return results
+}
+
+// Check if a commit is a root commit (has no parent)
+async function isRoot(git: SimpleGit, hash: string): Promise<boolean> {
+  try {
+    await git.raw(['rev-parse', `${hash}^`])
+    return false // Has parent, not root
+  } catch {
+    return true // No parent, is root
+  }
 }
 
 function composeCommitMessage(subject: string, body: string): string {

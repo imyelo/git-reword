@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { exec } from 'node:child_process'
+import { promisify } from 'node:util'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { executeRewordRebase, type RewordResult } from '../../src/rebase'
 import { cleanupTempRepo, createTempGitRepo } from '../helpers/git'
+
+const execAsync = promisify(exec)
 
 describe('rebase executor', () => {
   it('should export executeRewordRebase function', async () => {
@@ -513,6 +517,214 @@ describe('rebase executor', () => {
         }
       } finally {
         await rm(tempDir, { recursive: true, force: true })
+      }
+    })
+  })
+
+  describe('integration: reword middle commits (not HEAD)', () => {
+    let tempDir: string
+
+    beforeEach(async () => {
+      tempDir = await createTempGitRepo()
+    })
+
+    afterEach(async () => {
+      await cleanupTempRepo(tempDir)
+    })
+
+    /**
+     * Helper: create N sequential commits in the temp repo.
+     * Returns an array of { hash, message } in chronological order (oldest first).
+     */
+    async function createCommits(messages: string[]): Promise<Array<{ hash: string; message: string }>> {
+      const commits: Array<{ hash: string; message: string }> = []
+      for (const msg of messages) {
+        await execAsync(`echo "content-${commits.length}" >> file.txt && git add file.txt && git commit -m "${msg}"`, {
+          cwd: tempDir,
+        })
+        const hash = (await execAsync('git rev-parse HEAD', { cwd: tempDir })).stdout.trim()
+        commits.push({ hash, message: msg })
+      }
+      return commits
+    }
+
+    /**
+     * Helper: get the full commit log (oldest first) from the temp repo.
+     * Returns { hash, message, patch } for each commit.
+     */
+    async function getFullLog(): Promise<Array<{ hash: string; message: string; patch: string }>> {
+      // Get all commits newest-first, then reverse for chronological order
+      const logOutput = (await execAsync('git log --format="%H|||%s" --reverse', { cwd: tempDir })).stdout.trim()
+      const entries = logOutput.split('\n').filter(Boolean)
+      const result: Array<{ hash: string; message: string; patch: string }> = []
+      for (const entry of entries) {
+        const parts = entry.split('|||')
+        const hash = parts[0]
+        const message = parts[1]
+        if (!hash || !message) {
+          continue
+        }
+        // Get the diff/patch for this specific commit
+        const patch = (await execAsync(`git diff-tree --no-commit-id -p ${hash}`, { cwd: tempDir })).stdout.trim()
+        result.push({ hash, message, patch })
+      }
+      return result
+    }
+
+    it('should reword a single middle commit without changing the commit chain', async () => {
+      // Create: initial (from helper) → A → B → C
+      const commits = await createCommits(['feat: A', 'feat: B', 'feat: C'])
+
+      // Record patches before reword
+      const beforeLog = await getFullLog()
+      // beforeLog has 4 entries: initial, A, B, C
+
+      // Reword only commit B (middle commit, not HEAD)
+      const commitB = commits.at(1)
+      if (!commitB) {
+        throw new Error('Expected commit B to exist')
+      }
+      const results = await executeRewordRebase(
+        [{ hash: commitB.hash, newMessage: 'feat: B-reworded', newBody: '' }],
+        tempDir
+      )
+
+      // Verify reword succeeded
+      expect(results).toHaveLength(1)
+      expect(results[0]?.success).toBe(true)
+
+      // Get log after reword
+      const afterLog = await getFullLog()
+
+      // Same number of commits
+      expect(afterLog).toHaveLength(beforeLog.length)
+
+      // Commit messages: initial unchanged, A unchanged, B reworded, C unchanged
+      expect(afterLog[0]?.message).toBe('initial commit')
+      expect(afterLog[1]?.message).toBe('feat: A')
+      expect(afterLog[2]?.message).toBe('feat: B-reworded')
+      expect(afterLog[3]?.message).toBe('feat: C')
+
+      // Patches (file changes) should be identical for each commit
+      for (let i = 0; i < beforeLog.length; i++) {
+        expect(afterLog[i]?.patch).toBe(beforeLog[i]?.patch)
+      }
+    })
+
+    it('should reword a range of middle commits without changing the commit chain', async () => {
+      // Create: initial → A → B → C → D
+      const commits = await createCommits(['feat: A', 'feat: B', 'feat: C', 'feat: D'])
+
+      // Record patches before reword
+      const beforeLog = await getFullLog()
+
+      // Reword commits B and C (range, not including HEAD commit D)
+      const commitB = commits.at(1)
+      const commitC = commits.at(2)
+      if (!commitB || !commitC) {
+        throw new Error('Expected commits B and C to exist')
+      }
+      const results = await executeRewordRebase(
+        [
+          { hash: commitB.hash, newMessage: 'feat: B-new', newBody: '' },
+          { hash: commitC.hash, newMessage: 'feat: C-new', newBody: '' },
+        ],
+        tempDir
+      )
+
+      // Verify reword succeeded
+      expect(results).toHaveLength(2)
+      expect(results[0]?.success).toBe(true)
+      expect(results[1]?.success).toBe(true)
+
+      // Get log after reword
+      const afterLog = await getFullLog()
+
+      // Same number of commits
+      expect(afterLog).toHaveLength(beforeLog.length)
+
+      // Messages: initial unchanged, A unchanged, B reworded, C reworded, D unchanged
+      expect(afterLog[0]?.message).toBe('initial commit')
+      expect(afterLog[1]?.message).toBe('feat: A')
+      expect(afterLog[2]?.message).toBe('feat: B-new')
+      expect(afterLog[3]?.message).toBe('feat: C-new')
+      expect(afterLog[4]?.message).toBe('feat: D')
+
+      // Patches should be identical
+      for (let i = 0; i < beforeLog.length; i++) {
+        expect(afterLog[i]?.patch).toBe(beforeLog[i]?.patch)
+      }
+    })
+
+    it('should reword the commit right after root without breaking the chain', async () => {
+      // Create: initial → A → B
+      const commits = await createCommits(['feat: A', 'feat: B'])
+
+      const beforeLog = await getFullLog()
+
+      // Reword commit A (the commit right after root, not HEAD)
+      const commitA = commits.at(0)
+      if (!commitA) {
+        throw new Error('Expected commit A to exist')
+      }
+      const results = await executeRewordRebase(
+        [{ hash: commitA.hash, newMessage: 'feat: A-reworded', newBody: '' }],
+        tempDir
+      )
+
+      expect(results).toHaveLength(1)
+      expect(results[0]?.success).toBe(true)
+
+      const afterLog = await getFullLog()
+
+      expect(afterLog).toHaveLength(beforeLog.length)
+      expect(afterLog[0]?.message).toBe('initial commit')
+      expect(afterLog[1]?.message).toBe('feat: A-reworded')
+      expect(afterLog[2]?.message).toBe('feat: B')
+
+      for (let i = 0; i < beforeLog.length; i++) {
+        expect(afterLog[i]?.patch).toBe(beforeLog[i]?.patch)
+      }
+    })
+
+    it('should reword a middle commit with body', async () => {
+      // Create: initial → A → B → C
+      const commits = await createCommits(['feat: A', 'feat: B', 'feat: C'])
+
+      const beforeLog = await getFullLog()
+
+      // Reword commit B with a new body
+      const commitB = commits.at(1)
+      if (!commitB) {
+        throw new Error('Expected commit B to exist')
+      }
+      const results = await executeRewordRebase(
+        [{ hash: commitB.hash, newMessage: 'feat: B-reworded', newBody: 'This is the new body\nwith multiple lines' }],
+        tempDir
+      )
+
+      expect(results).toHaveLength(1)
+      expect(results[0]?.success).toBe(true)
+
+      const afterLog = await getFullLog()
+
+      // Check subject is reworded
+      expect(afterLog[2]?.message).toBe('feat: B-reworded')
+
+      // Check body is set correctly
+      const bodyOutput = (
+        await execAsync(`git log -1 --format=%b ${afterLog[2]?.hash}`, { cwd: tempDir })
+      ).stdout.trim()
+      expect(bodyOutput).toBe('This is the new body\nwith multiple lines')
+
+      // Other messages unchanged
+      expect(afterLog[0]?.message).toBe('initial commit')
+      expect(afterLog[1]?.message).toBe('feat: A')
+      expect(afterLog[3]?.message).toBe('feat: C')
+
+      // Patches should be identical
+      for (let i = 0; i < beforeLog.length; i++) {
+        expect(afterLog[i]?.patch).toBe(beforeLog[i]?.patch)
       }
     })
   })
