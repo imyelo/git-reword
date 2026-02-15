@@ -1,6 +1,6 @@
 {
   "name": "git-reword",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "AI-powered Git commit message rewriter",
   "type": "module",
   "exports": {
@@ -62,11 +62,11 @@
     "@ai-sdk/openai": "3.0.26",
     "@byteland/ink-scroll-bar": "^1.0.0",
     "ai": "6.0.79",
-    "inquirer": "^10.0.0",
     "ink": "^6.7.0",
-    "rc9": "^1.0.0",
     "ink-scroll-view": "^0.3.6",
+    "inquirer": "^10.0.0",
     "oclif": "4.22.77",
+    "rc9": "^1.0.0",
     "react": "^19.2.4",
     "simple-git": "3.27.0",
     "zod": "4.3.6"
