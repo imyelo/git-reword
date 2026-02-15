@@ -2,8 +2,10 @@ import { Args, Command, Flags } from '@oclif/core'
 import inquirer, { type Question } from 'inquirer'
 import { generateCommitMessage, generateStagedMessage } from '../ai/generator.js'
 import { type Config, hasConfig, loadConfig, saveConfig } from '../config.js'
+import { ErrorCode, GitRewordError, handleError } from '../error.js'
 import { checkBranchContains, checkUncommittedChanges, getCommits } from '../git/index.js'
 import { getSimpleGit } from '../git/simple-git.js'
+import { checkFastForward } from '../preflight.js'
 import { executeRewordRebase } from '../rebase/index.js'
 import type { Commit } from '../types.js'
 import { selectCommits } from '../ui/render-selector.jsx'
@@ -119,34 +121,47 @@ class MainCommand extends Command {
     const { args, flags } = await this.parse(MainCommand)
     const parsed = flags as ParsedFlags
 
-    if (parsed.config) {
-      return this.runConfig()
-    }
-
-    // Check if config exists, prompt user to configure if not
-    if (!(await hasConfig())) {
-      const response = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'configure',
-          message: 'No configuration found. Would you like to configure git-reword now?',
-          default: true,
-        },
-      ])
-
-      if (response.configure) {
+    try {
+      if (parsed.config) {
         return this.runConfig()
       }
-      this.error('Configuration required. Run `git-reword --config` to configure.')
+
+      // Check if config exists, prompt user to configure if not
+      if (!(await hasConfig())) {
+        const response = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'configure',
+            message: 'No configuration found. Would you like to configure git-reword now?',
+            default: true,
+          },
+        ])
+
+        if (response.configure) {
+          return this.runConfig()
+        }
+        throw new GitRewordError(
+          'Configuration required. Run `git-reword --config` to configure.',
+          ErrorCode.CONFIG_ERROR
+        )
+      }
+
+      let config: Config
+      try {
+        config = await loadConfig()
+      } catch {
+        throw new GitRewordError('Failed to load configuration.', ErrorCode.CONFIG_ERROR)
+      }
+
+      if (parsed.staged) {
+        return this.runStaged(parsed, config)
+      }
+
+      return this.runReword(args.ref, parsed, config)
+    } catch (error) {
+      const exitCode = handleError(error)
+      this.exit(exitCode)
     }
-
-    const config = await loadConfig()
-
-    if (parsed.staged) {
-      return this.runStaged(parsed, config)
-    }
-
-    return this.runReword(args.ref, parsed, config)
   }
 
   private async runConfig() {
@@ -202,11 +217,6 @@ class MainCommand extends Command {
   }
 
   private async runReword(ref: string | undefined, flags: ParsedFlags, config: Config) {
-    // Pre-flight: check uncommitted changes (skip with --skip-check for debugging)
-    if (!flags['skip-check'] && (await checkUncommittedChanges())) {
-      this.error('Uncommitted changes detected. Please commit or stash them first.')
-    }
-
     // Determine if ref is a range or single commit
     let options: { commit?: string; range?: string; last?: number; since?: string } = {}
     if (ref) {
@@ -223,23 +233,47 @@ class MainCommand extends Command {
       options = { since: flags.since }
     }
 
+    // Pre-flight checks (skip with --skip-check for debugging)
+    if (!flags['skip-check']) {
+      if (await checkUncommittedChanges()) {
+        throw new GitRewordError(
+          'Uncommitted changes detected. Please commit or stash them first.',
+          ErrorCode.GIT_ERROR
+        )
+      }
+
+      if (!(await checkFastForward(options))) {
+        throw new GitRewordError(
+          'Cannot fast-forward to target commits. They may have been rebased or amended. Run "git reflog" to check.',
+          ErrorCode.GIT_ERROR
+        )
+      }
+    }
+
     const commits = await getCommits(options)
 
     // Validate commits are on current branch
     if (options.commit) {
       if (!(await checkBranchContains(options.commit))) {
-        this.error(`Commit '${options.commit}' is not on the current branch. Please checkout the correct branch first.`)
+        throw new GitRewordError(
+          `Commit '${options.commit}' is not on the current branch. Please checkout the correct branch first.`,
+          ErrorCode.INVALID_ARGS
+        )
       }
     } else if (options.range) {
       const [from, to] = options.range.split('..')
       if (!(await checkBranchContains(from)) || !(await checkBranchContains(to))) {
-        this.error(
-          `One or more commits in range '${options.range}' are not on the current branch. Please checkout the correct branch first.`
+        throw new GitRewordError(
+          `One or more commits in range '${options.range}' are not on the current branch. Please checkout the correct branch first.`,
+          ErrorCode.INVALID_ARGS
         )
       }
     } else if (options.since) {
       if (!(await checkBranchContains(options.since))) {
-        this.error(`Commit '${options.since}' is not on the current branch. Please checkout the correct branch first.`)
+        throw new GitRewordError(
+          `Commit '${options.since}' is not on the current branch. Please checkout the correct branch first.`,
+          ErrorCode.INVALID_ARGS
+        )
       }
     }
     // Note: --last doesn't need validation as it always operates on current branch's last N commits
@@ -291,7 +325,7 @@ class MainCommand extends Command {
     const status = await git.status()
 
     if (status.staged.length === 0) {
-      this.error('No staged changes. Stage your changes first with `git add`.')
+      throw new GitRewordError('No staged changes. Stage your changes first with `git add`.', ErrorCode.INVALID_ARGS)
     }
 
     const diff = await git.diff(['--staged', '-p'])
@@ -309,7 +343,7 @@ class MainCommand extends Command {
         await git.commit(fullMessage)
         this.log('Committed!')
       } else {
-        this.log('Commit cancelled.')
+        throw new GitRewordError('Commit cancelled by user.', ErrorCode.USER_INTERRUPT)
       }
     }
   }

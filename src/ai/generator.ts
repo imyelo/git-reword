@@ -13,36 +13,106 @@ const messageSchema = z.object({
   reasoning: z.string().optional().describe('Brief explanation of the message choice'),
 })
 
+const MAX_RETRIES = 3
+const BASE_DELAY = 1000 // ms
+
+interface RetryableError extends Error {
+  code?: string
+  status?: number
+}
+
+function isRetryableError(error: unknown): boolean {
+  const err = error as RetryableError
+  const message = (err.message || '').toLowerCase()
+  const status = err.status || err.code
+
+  // Rate limit errors
+  if (status === 429 || message.includes('rate_limit') || message.includes('rate limit') || message.includes('429')) {
+    return true
+  }
+
+  // Server errors
+  if (
+    status === 500 ||
+    status === 502 ||
+    status === 503 ||
+    message.includes('500') ||
+    message.includes('502') ||
+    message.includes('503')
+  ) {
+    return true
+  }
+
+  // Network errors
+  if (message.includes('network') || message.includes('econnrefused') || message.includes('etimedout')) {
+    return true
+  }
+
+  return false
+}
+
+async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
+  let lastError: Error | undefined
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      return await fn()
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error))
+
+      // Check if error is retryable
+      if (!isRetryableError(error)) {
+        throw lastError
+      }
+
+      // Don't retry on last attempt
+      if (attempt === MAX_RETRIES - 1) {
+        throw lastError
+      }
+
+      // Exponential backoff
+      const delay = BASE_DELAY * 2 ** attempt
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
+  }
+
+  throw lastError
+}
+
 export async function generateCommitMessage(
   commit: Commit,
   config: Config
 ): Promise<{ subject: string; body: string; reasoning?: string }> {
-  const provider = getProvider(config)
+  return withRetry(async () => {
+    const provider = getProvider(config)
 
-  const diff = await getCommitDiff(commit.hash)
+    const diff = await getCommitDiff(commit.hash)
 
-  const result = await generateObject({
-    model: provider(config.model),
-    schema: messageSchema,
-    prompt: PROMPTS.rewrite(commit.message, commit.body, diff),
+    const result = await generateObject({
+      model: provider(config.model),
+      schema: messageSchema,
+      prompt: PROMPTS.rewrite(commit.message, commit.body, diff),
+    })
+
+    return { subject: result.object.subject, body: result.object.body, reasoning: result.object.reasoning }
   })
-
-  return { subject: result.object.subject, body: result.object.body, reasoning: result.object.reasoning }
 }
 
 export async function generateStagedMessage(
   diff: string,
   config: Config
 ): Promise<{ subject: string; body: string; reasoning?: string }> {
-  const provider = getProvider(config)
+  return withRetry(async () => {
+    const provider = getProvider(config)
 
-  const result = await generateObject({
-    model: provider(config.model),
-    schema: messageSchema,
-    prompt: PROMPTS.staged(diff),
+    const result = await generateObject({
+      model: provider(config.model),
+      schema: messageSchema,
+      prompt: PROMPTS.staged(diff),
+    })
+
+    return { subject: result.object.subject, body: result.object.body, reasoning: result.object.reasoning }
   })
-
-  return { subject: result.object.subject, body: result.object.body, reasoning: result.object.reasoning }
 }
 
 const BASE_PROMPT = `Requirements:
