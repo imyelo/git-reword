@@ -2,24 +2,93 @@
 
 AI-powered Git commit message rewriter.
 
+## Overview
+
+`git-reword` is a CLI tool for batch rewording Git commit messages using AI. Designed to be **independent, universal, and callable by any tool** (including Claude Cloud Skills).
+
+This tool is **designed for AI and serves AI**:
+- Built for AI agents to integrate into their workflows
+- First-class support for Claude Cloud Skills integration
+- Enables AI to understand and improve Git commit history
+- Leverages AI for message generation while providing deterministic Git operations
+
+## Why
+
+| Tool                                                                                                                                            | Limitation                                                     |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Most AI commit message tools (e.g., [aicommits](https://github.com/Nutlope/aicommits), [opencommit](https://github.com/di-sukharev/opencommit)) | Only handles the most recent commit                            |
+| AI coding assistants (Claude Code, etc.)                                                                                                        | Inconvenient for processing batches of commits in conversation |
+| Manual rebase                                                                                                                                   | Tedious for multiple commits                                   |
+
 ## Usage
 
 ```bash
-# Reword the last commit
+# Reword the last commit (default)
 git-reword
 
-# Reword the last 3 commits
-git-reword --last 3
+# Reword the last N commits
+git-reword --last 5
 
-# Preview without applying
-git-reword --dry-run --last 3
+# Reword commits from a specific ref
+git-reword --since abc1234
 
-# Skip confirmation
-git-reword --yes --last 3
+# Reword commits in range
+git-reword HEAD~3..HEAD
 
-# Generate message for staged changes
+# Reword a specific commit
+git-reword abc1234
+
+# Generate commit message for staged changes
 git-reword --staged
 ```
+
+### Confirmation Flow
+
+Interactive UI displays commits with AI-generated suggestions. For each commit, you can:
+
+- **Accept**: Use AI-generated message
+- **Skip**: Keep original message
+- **Regenerate**: Request new AI message
+- **Abort**: Cancel entire operation
+
+```bash
+# Interactive mode (default)
+git-reword --last 3
+
+# Skip confirmation - apply all changes automatically
+git-reword --yes --last 3
+```
+
+### AI Commit (Staged Changes)
+
+Generate a commit message for staged changes:
+
+```bash
+# Stage your changes first
+git add .
+
+# Generate and apply commit message
+git-reword --staged
+
+# Output:
+# Suggested message:
+# feat(api): add user authentication middleware
+#
+# Apply? [y/n]
+# y: git commit with suggested message
+# n: cancel, no commit
+```
+
+## Options
+
+| Option               | Description                                   |
+| -------------------- | --------------------------------------------- |
+| `--last <n>`         | Reword the last N commits                     |
+| `--since <ref>`      | Reword commits from ref's next commit to HEAD |
+| `--dry-run`          | Preview without executing rebase              |
+| `--yes`, `-y`        | Skip confirmation, apply all changes          |
+| `--skip-check`, `-k` | Skip uncommitted changes check (debugging)    |
+| `--staged`           | Generate commit message for staged changes    |
 
 ## Installation
 
@@ -31,47 +100,141 @@ bun add -g git-reword
 
 ## Configuration
 
-Create `~/.config/git-reword/config.json`:
+Create `~/.git-rewordrc`:
 
-```json
-{
-  "provider": "anthropic",
-  "model": "claude-sonnet-4-20250514",
-  "apiKey": "your-api-key"
-}
+```
+provider=anthropic
+model=claude-sonnet-4-20250514
+apiKey=your-api-key
 ```
 
 ### Supported Providers
 
-| Provider | Default Model |
-|----------|---------------|
-| `openai` | `gpt-4o` |
-| `anthropic` | `claude-sonnet-4-20250514` |
-| `google` | `gemini-2.0-flash-exp` |
+| Provider    | Default Model      |
+| ----------- | ------------------ |
+| `openai`    | `gpt-5-mini`       |
+| `anthropic` | `claude-haiku-4-5` |
+| `google`    | `gemini-2.5-flash` |
 
-## Environment Variables
+### Configuration Examples for Various Well-Known Providers
 
-| Variable | Description |
-|----------|-------------|
-| `GIT_REWORD_PROVIDER` | AI provider |
-| `GIT_REWORD_MODEL` | Model name |
-| `GIT_REWORD_API_KEY` | API key |
-| `GIT_REWORD_BASE_URL` | Base URL for self-hosted models |
+#### OpenAI
 
-## Examples
+```rc
+provider=openai
+model=gpt-5-mini
+apiKey=sk-...
+```
+
+#### Anthropic
+
+```rc
+provider=anthropic
+model=claude-haiku-4-5
+apiKey=sk-ant-...
+```
+
+#### Google
+
+```rc
+provider=google
+model=gemini-2.5-flash
+apiKey=AIza...
+```
+
+#### MiniMax
+
+```rc
+provider=anthropic
+model=MiniMax-M2.5
+baseUrl=https://api.minimax.io/anthropic/v1
+apiKey=sk-...
+```
+
+#### MiniMax (CN)
+
+```rc
+provider=anthropic
+model=MiniMax-M2.5
+baseUrl=https://api.minimaxi.com/anthropic/v1
+apiKey=sk-...
+```
+
+## Exit Codes
+
+| Code | Meaning                                           |
+| ---- | ------------------------------------------------- |
+| `0`  | Success: all commits rewrote                      |
+| `1`  | Error: invalid arguments, config error, git error |
+| `2`  | User interrupt: aborted with `q` or Ctrl+C        |
+| `3`  | Partial: some commits rewrote, some skipped       |
+
+## GPG Signing
+
+When rewording GPG-signed commits:
+
+- **Signed commits remain signed**: `git commit --amend` without `-S` preserves the signature
+- **Unsigned commits remain unsigned**: No new signature is added
+
+If you use GPG-signed commits and git-reword prompts for passphrase during rebase:
+
+1. **Extend GPG agent cache lifetime**:
+   ```bash
+   echo "default-cache-ttl 86400" >> ~/.gnupg/gpg-agent.conf
+   echo "max-cache-ttl 604800" >> ~/.gnupg/gpg-agent.conf
+   gpgconf --reload gpg-agent
+   ```
+
+2. **Refresh cache before running git-reword**:
+   ```bash
+   git commit --amend --no-edit -S
+   ```
+
+Verify signatures after reword:
+```bash
+git log --show-signature -5
+```
+
+## Cloud Skill Integration (WIP)
+
+The CLI outputs structured text for easy parsing by Skills:
+
+```typescript
+// 1. Preview mode - show what would change
+const preview = exec("git-reword --dry-run --last 5");
+
+// 2. Execute mode - apply changes
+const result = exec("git-reword --yes --last 5");
+
+// Output:
+// ✓ Commit abc123 rewrote
+// ✓ Commit def456 rewrote
+// Done. 2/2 commits rewrote
+```
+
+## Branch Constraint
+
+All reword operations target commits on the **current branch only**. This tool uses `git rebase` internally, which replays commits onto the current branch.
 
 ```bash
-# Use Anthropic with specific model
-GIT_REWORD_PROVIDER=anthropic \
-GIT_REWORD_MODEL=claude-opus-4 \
-git-reword --last 2
+# ✅ Correct: operate on current branch
+git checkout feature-a
+git-reword --last 3
 
-# Use OpenAI compatible API
-GIT_REWORD_BASE_URL="https://api.openai.com/v1" \
-GIT_REWORD_API_KEY="sk-..." \
-git-reword
+# ✅ Correct: checkout target branch first
+git checkout feature-b
+git-reword --since abc1234
 ```
+
+## Pre-flight Checks
+
+Before rewording commits (not `--staged`):
+
+1. **No uncommitted changes**: Ensures safe rebase operation
+2. **Fast-forward possible**: Verifies commits haven't been rebased or amended
+
+Use `--skip-check` to bypass these checks (for debugging).
 
 ---
 
-Apache-2.0 &copy; [yelo](https://github.com/imyelo), 2023 - present
+Apache-2.0 &copy; [yelo](https://github.com/imyelo), 2026 - present
