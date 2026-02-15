@@ -41,7 +41,7 @@
     "lint:fix": "biome check . --fix",
     "format": "biome format . --write",
     "prepare": "husky",
-    "release": "np"
+    "release": "npm run build && np"
   },
   "engines": {
     "node": ">= 22"
