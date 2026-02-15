@@ -144,9 +144,9 @@ ${BASE_PROMPT}
 - Output both "subject" (the commit line) and "body" (detailed description)`,
 }
 const DEFAULT_MODELS = {
-  anthropic: 'claude-sonnet-4-20250514',
-  google: 'gemini-2.0-flash-exp',
-  openai: 'gpt-4o',
+  anthropic: 'claude-haiku-4-5',
+  google: 'gemini-2.5-flash',
+  openai: 'gpt-5-mini',
 } as const
 
 function getProvider(config: Config) {
