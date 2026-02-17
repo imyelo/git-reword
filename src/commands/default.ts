@@ -1,5 +1,5 @@
 import { Args, Command, Flags } from '@oclif/core'
-import inquirer, { type Question } from 'inquirer'
+import inquirer from 'inquirer'
 import { generateCommitMessage, generateStagedMessage } from '../ai/generator.js'
 import { type Config, hasConfig, loadConfig, saveConfig } from '../config.js'
 import { ErrorCode, GitRewordError, handleError } from '../error.js'
@@ -8,7 +8,7 @@ import { getSimpleGit } from '../git/simple-git.js'
 import { checkFastForward } from '../preflight.js'
 import { executeRewordRebase } from '../rebase/index.js'
 import type { Commit } from '../types.js'
-import { selectCommits } from '../ui/render-selector.jsx'
+import { selectCommits } from '../ui/render-selector.js'
 import { confirm } from '../ui.js'
 
 type RewriteResult = Array<{ hash: string; originalMessage: string; newMessage: string; newBody: string }>
@@ -172,7 +172,7 @@ class MainCommand extends Command {
       // No config yet
     }
 
-    const questions: Question[] = [
+    const questions = [
       {
         type: 'list',
         name: 'provider',
@@ -206,7 +206,7 @@ class MainCommand extends Command {
       },
     ]
 
-    const answers = await inquirer.prompt(questions)
+    const answers = await inquirer.prompt(questions as any)
     const newConfig = Object.fromEntries(
       Object.entries(answers).filter(([, v]) => v !== undefined && v !== '')
     ) as Config

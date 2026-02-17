@@ -1,5 +1,5 @@
 import { Command, Flags } from '@oclif/core'
-import inquirer, { type Question } from 'inquirer'
+import inquirer from 'inquirer'
 import { type Config, loadConfig, saveConfig } from '../config.js'
 
 export default class ConfigCommand extends Command {
@@ -41,7 +41,7 @@ export default class ConfigCommand extends Command {
       // No config yet, use empty object
     }
 
-    const questions: Question[] = [
+    const questions = [
       {
         type: 'list',
         name: 'provider',
@@ -75,7 +75,7 @@ export default class ConfigCommand extends Command {
       },
     ]
 
-    const answers = await inquirer.prompt(questions)
+    const answers = await inquirer.prompt(questions as any)
     const newConfig = Object.fromEntries(
       Object.entries(answers).filter(([, v]) => v !== undefined && v !== '')
     ) as Config
