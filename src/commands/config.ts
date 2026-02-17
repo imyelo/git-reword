@@ -43,39 +43,39 @@ export default class ConfigCommand extends Command {
 
     const questions = [
       {
-        type: 'list',
+        type: 'list' as const,
         name: 'provider',
         message: 'Select AI provider',
         choices: ['openai', 'anthropic', 'google'],
         default: currentConfig.provider || 'openai',
       },
       {
-        type: 'input',
+        type: 'input' as const,
         name: 'model',
         message: 'Model name (optional, press Enter to skip)',
         default: currentConfig.model || '',
       },
       {
-        type: 'input',
+        type: 'input' as const,
         name: 'apiKey',
         message: 'API Key (optional, press Enter to skip)',
         default: currentConfig.apiKey || '',
       },
       {
-        type: 'input',
+        type: 'input' as const,
         name: 'baseUrl',
         message: 'Base URL (optional, for custom endpoints)',
         default: currentConfig.baseUrl || '',
       },
       {
-        type: 'input',
+        type: 'input' as const,
         name: 'systemPrompt',
         message: 'System prompt (optional)',
         default: currentConfig.systemPrompt || '',
       },
     ]
 
-    const answers = await inquirer.prompt(questions as any)
+    const answers = await inquirer.prompt(questions)
     const newConfig = Object.fromEntries(
       Object.entries(answers).filter(([, v]) => v !== undefined && v !== '')
     ) as Config
