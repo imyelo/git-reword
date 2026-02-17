@@ -46,6 +46,14 @@ describe('MainCommand export', () => {
     expect(MainCommand).toBeDefined()
     expect(MainCommand.summary).toBe('AI-powered Git commit message rewriter')
   })
+
+  it('should have format flag defined', () => {
+    // @ts-expect-error - access static flags
+    const formatFlag = MainCommand.flags.format
+    expect(formatFlag).toBeDefined()
+    expect(formatFlag.options).toContain('jsonl')
+    expect(formatFlag.char).toBe('f')
+  })
 })
 
 describe('CLI generateRewrites', () => {

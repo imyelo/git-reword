@@ -5,6 +5,7 @@ import { type Config, hasConfig, loadConfig, saveConfig } from '../config.js'
 import { ErrorCode, GitRewordError, handleError } from '../error.js'
 import { checkBranchContains, checkUncommittedChanges, getCommits } from '../git/index.js'
 import { getSimpleGit } from '../git/simple-git.js'
+import { formatPreviewJsonl, formatResultJsonl } from '../output.js'
 import { checkFastForward } from '../preflight.js'
 import { executeRewordRebase } from '../rebase/index.js'
 import type { Commit } from '../types.js'
@@ -63,6 +64,7 @@ interface ParsedFlags {
   since?: string
   'skip-check': boolean
   config: boolean
+  format?: 'text' | 'json' | 'jsonl'
 }
 
 class MainCommand extends Command {
@@ -114,6 +116,12 @@ class MainCommand extends Command {
       char: 'c',
       description: 'Configure git-reword settings interactively',
       default: false,
+    }),
+    format: Flags.string({
+      char: 'f',
+      description: 'Output format: text (default), json, or jsonl (for AI agent consumption)',
+      options: ['text', 'json', 'jsonl'],
+      default: 'text',
     }),
   }
 
@@ -287,16 +295,26 @@ class MainCommand extends Command {
 
     // Dry-run: show preview without executing
     if (flags['dry-run']) {
-      this.log('\n--- Dry Run: Would apply these rewrites ---')
-      for (const r of selectedRewrites) {
-        this.log(`\n${r.hash.substring(0, 7)}:`)
-        this.log(`  original: ${r.originalMessage}`)
-        this.log(`  new:      ${r.newMessage}`)
-        if (r.newBody) {
-          this.log(`  body:     ${r.newBody.split('\n').join('\n          ')}`)
+      const previewItems = selectedRewrites.map(r => ({
+        commit: r.hash,
+        originalMessage: r.originalMessage,
+        newMessage: r.newMessage,
+      }))
+
+      if (flags.format === 'jsonl') {
+        this.log(formatPreviewJsonl(previewItems))
+      } else {
+        this.log('\n--- Dry Run: Would apply these rewrites ---')
+        for (const r of selectedRewrites) {
+          this.log(`\n${r.hash.substring(0, 7)}:`)
+          this.log(`  original: ${r.originalMessage}`)
+          this.log(`  new:      ${r.newMessage}`)
+          if (r.newBody) {
+            this.log(`  body:     ${r.newBody.split('\n').join('\n          ')}`)
+          }
         }
+        this.log('\n--- End dry run ---\n')
       }
-      this.log('\n--- End dry run ---\n')
       return
     }
 
@@ -306,17 +324,20 @@ class MainCommand extends Command {
     )
 
     // Report results
-    let successCount = 0
-    for (const result of results) {
-      if (result.success) {
-        this.log(`✓ ${result.commit.substring(0, 7)} rewrote`)
-        successCount++
-      } else {
-        this.log(`✗ ${result.commit.substring(0, 7)} failed: ${result.error}`)
+    if (flags.format === 'jsonl') {
+      this.log(formatResultJsonl(results))
+    } else {
+      let successCount = 0
+      for (const result of results) {
+        if (result.success) {
+          this.log(`✓ ${result.commit.substring(0, 7)} rewrote`)
+          successCount++
+        } else {
+          this.log(`✗ ${result.commit.substring(0, 7)} failed: ${result.error}`)
+        }
       }
+      this.log(`Done. ${successCount}/${results.length} commits rewrote`)
     }
-
-    this.log(`Done. ${successCount}/${results.length} commits rewrote`)
   }
 
   private async runStaged(flags: ParsedFlags, config: Config) {
