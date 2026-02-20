@@ -9,6 +9,7 @@ const configSchema = z.object({
   organization: z.string().optional(),
   headers: z.record(z.string(), z.string()).optional(),
   systemPrompt: z.string().optional(),
+  maxDiffChars: z.number().optional(),
 })
 
 export type Config = z.infer<typeof configSchema>

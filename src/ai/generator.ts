@@ -86,7 +86,7 @@ export async function generateCommitMessage(
   return withRetry(async () => {
     const provider = getProvider(config)
 
-    const diff = await getCommitDiff(commit.hash)
+    const diff = await getCommitDiff(commit.hash, config.maxDiffChars)
 
     const result = await generateObject({
       model: provider(config.model),
@@ -170,10 +170,21 @@ function getProvider(config: Config) {
   }
 }
 
-async function getCommitDiff(hash: string): Promise<string> {
+const DEFAULT_MAX_DIFF_CHARS = 50_000 // ~50KB
+
+async function getCommitDiff(hash: string, maxChars?: number): Promise<string> {
   const git = await getSimpleGit()
+  const limit = maxChars || DEFAULT_MAX_DIFF_CHARS
+
   try {
     const diff = await git.show([`${hash}^..${hash}`, '--stat', '-p'])
+
+    // Truncate if exceeds limit
+    if (diff.length > limit) {
+      const truncated = diff.slice(0, limit)
+      return `${truncated}\n\n[Diff truncated - showing first ${limit.toLocaleString()} characters]`
+    }
+
     return diff
   } catch {
     return ''
