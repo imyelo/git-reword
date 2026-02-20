@@ -12,9 +12,7 @@ export interface ApplyError {
   message: string
 }
 
-export async function parseStdinRewrites(
-  stdin: string
-): Promise<{ rewrites: ApplyRewrite[]; errors: ApplyError[] }> {
+export async function parseStdinRewrites(stdin: string): Promise<{ rewrites: ApplyRewrite[]; errors: ApplyError[] }> {
   const lines = stdin.split('\n').filter(line => line.trim() !== '')
   const rewrites: ApplyRewrite[] = []
   const errors: ApplyError[] = []
@@ -64,9 +62,7 @@ export async function parseStdinRewrites(
   return { rewrites, errors }
 }
 
-export async function validateCommitsExist(
-  rewrites: ApplyRewrite[]
-): Promise<ApplyError[]> {
+export async function validateCommitsExist(rewrites: ApplyRewrite[]): Promise<ApplyError[]> {
   const errors: ApplyError[] = []
 
   for (const rewrite of rewrites) {
