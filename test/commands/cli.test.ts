@@ -48,11 +48,22 @@ describe('MainCommand export', () => {
   })
 
   it('should have format flag defined', () => {
-    // @ts-expect-error - access static flags
     const formatFlag = MainCommand.flags.format
     expect(formatFlag).toBeDefined()
     expect(formatFlag.options).toContain('jsonl')
     expect(formatFlag.char).toBe('f')
+  })
+
+  it('should have all format options available', () => {
+    const formatFlag = MainCommand.flags.format
+    expect(formatFlag.options).toContain('text')
+    expect(formatFlag.options).toContain('json')
+    expect(formatFlag.options).toContain('jsonl')
+  })
+
+  it('should have text as default format', () => {
+    const formatFlag = MainCommand.flags.format
+    expect(formatFlag.default).toBe('text')
   })
 })
 
