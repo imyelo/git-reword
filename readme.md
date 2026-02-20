@@ -103,6 +103,46 @@ git-reword --staged
 | `--skip-check`, `-k` | Skip uncommitted changes check (debugging)    |
 | `--staged`           | Generate commit message for staged changes    |
 | `--format <fmt>`     | Output format: `text` (default) or `jsonl` (AI agent) |
+| `--apply`, `-a`       | Apply pre-confirmed rewrites from stdin (skip AI generation) |
+
+### Preview Mode
+
+Preview changes without executing the rebase:
+
+```bash
+git-reword --dry-run --last 3
+
+# Output:
+# Commit abc123:
+#   OLD: "fix: bug"
+#   NEW: "fix(auth): resolve login timeout issue"
+# ---
+# Commit def456:
+#   OLD: "update"
+#   NEW: "feat(api): add rate limiting middleware"
+```
+
+### Two-Phase Execution
+
+The tool uses a two-phase approach for safe operation:
+
+1. **Confirmation Phase**: Generate AI messages, display each for your review
+2. **Execution Phase**: Once confirmed, execute the rebase once
+
+```bash
+# Phase 1: Confirmation (no rebase yet)
+git-reword --last 3
+# → Show commit-1: 原 → 新? [y/n/q]
+# → Show commit-2: 原 → 新? [y/n/q]
+# → Show commit-3: 原 → 新? [y/n/q]
+# All confirmed!
+
+# Phase 2: Execute rebase (all at once)
+# → Running: git rebase -i --exec "..."
+# → Done. 3/3 commits rewrote
+```
+
+With `--yes` flag, it skips confirmation and applies AI messages to all commits.
 
 ## Configuration
 
@@ -236,6 +276,40 @@ Before rewording commits (not `--staged`):
 2. **Fast-forward possible**: Verifies commits haven't been rebased or amended
 
 Use `--skip-check` to bypass these checks (for debugging).
+
+### Conflict Handling
+
+Rewording commits only modifies commit **messages**, not code content—so conflicts should not occur. If a conflict somehow happens (rare), the tool will:
+
+1. Detect the conflict via rebase exit code
+2. Abort the rebase automatically
+3. Show clear error with the commit hash
+4. Provide recovery instructions
+
+```bash
+# Recovery options:
+# Option 1: Cancel the entire operation
+git rebase --abort
+
+# Option 2: Resolve manually, then continue
+# 1. git status     # see conflicted files
+# 2. git diff       # understand the conflict
+# 3. Edit files to resolve
+# 4. git add <resolved-files>
+# 5. git rebase --continue
+```
+
+### AI Error Handling
+
+- **Empty Response**: If AI returns empty or invalid message, falls back to original message
+- **Rate Limiting**: Automatic retry with exponential backoff (3 retries max: 1s, 2s, 4s)
+
+### Execution Scope
+
+The tool only operates in the **current Git repository**. It does not support:
+- Multi-repo operations
+- Cross-path operations
+- Project config vs user config distinction
 
 ## Reference
 
