@@ -9,7 +9,7 @@
 - 🔌 **Multi-Provider**: Support OpenAI, Anthropic, Google, MiniMax, and more
 - 💬 **Interactive UI**: Review and accept/skip/regenerate suggestions
 - 🎯 **Flexible Targeting**: Support `--last`, `--since`, range, and single commit
-- ~~☁️ **Agent Friendly**: First-class integration for AI agents (WIP)~~
+- 🤖 **Agent Friendly**: First-class integration for AI agents with `--format jsonl`
 
 ### Comparison
 
@@ -102,6 +102,7 @@ git-reword --staged
 | `--yes`, `-y`        | Skip confirmation, apply all changes          |
 | `--skip-check`, `-k` | Skip uncommitted changes check (debugging)    |
 | `--staged`           | Generate commit message for staged changes    |
+| `--format <fmt>`     | Output format: `text` (default), `json`, or `jsonl` (AI agent) |
 
 ## Configuration
 
@@ -193,21 +194,26 @@ Verify signatures after reword:
 git log --show-signature -5
 ```
 
-### Agent Skill Integration (WIP)
+### Agent Skill Integration
 
-The CLI outputs structured text for easy parsing by Skills:
+The CLI outputs structured data for easy parsing by AI agents:
 
-```typescript
-// 1. Preview mode - show what would change
-const preview = exec("git-reword --dry-run --last 5");
+```bash
+# Text mode (default) - human-readable
+git-reword --last 5
+# Output:
+# ✓ Commit abc123 rewrote
+# ✓ Commit def456 rewrote
+# Done. 2/2 commits rewrote
 
-// 2. Execute mode - apply changes
-const result = exec("git-reword --yes --last 5");
+# JSONL mode - machine-readable
+git-reword --format jsonl --last 5
+# Output:
+# {"commit":"abc123...","shortCommit":"abc1234","originalMessage":"fix bug","newMessage":"fix: resolve authentication timeout"}
+# {"commit":"def456...","shortCommit":"def4567","originalMessage":"add feat","newMessage":"feat(api): add user authentication"}
 
-// Output:
-// ✓ Commit abc123 rewrote
-// ✓ Commit def456 rewrote
-// Done. 2/2 commits rewrote
+# JSON mode - structured output
+git-reword --format json --last 5
 ```
 
 ### Branch Constraint
