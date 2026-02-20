@@ -102,7 +102,7 @@ git-reword --staged
 | `--yes`, `-y`        | Skip confirmation, apply all changes          |
 | `--skip-check`, `-k` | Skip uncommitted changes check (debugging)    |
 | `--staged`           | Generate commit message for staged changes    |
-| `--format <fmt>`     | Output format: `text` (default), `json`, or `jsonl` (AI agent) |
+| `--format <fmt>`     | Output format: `text` (default) or `jsonl` (AI agent) |
 
 ## Configuration
 
@@ -212,8 +212,6 @@ git-reword --format jsonl --last 5
 # {"commit":"abc123...","shortCommit":"abc1234","originalMessage":"fix bug","newMessage":"fix: resolve authentication timeout"}
 # {"commit":"def456...","shortCommit":"def4567","originalMessage":"add feat","newMessage":"feat(api): add user authentication"}
 
-# JSON mode - structured output
-git-reword --format json --last 5
 ```
 
 ### Branch Constraint

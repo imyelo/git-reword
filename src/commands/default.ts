@@ -64,7 +64,7 @@ interface ParsedFlags {
   since?: string
   'skip-check': boolean
   config: boolean
-  format?: 'text' | 'json' | 'jsonl'
+  format?: 'text' | 'jsonl'
 }
 
 class MainCommand extends Command {
@@ -119,8 +119,8 @@ class MainCommand extends Command {
     }),
     format: Flags.string({
       char: 'f',
-      description: 'Output format: text (default), json, or jsonl (for AI agent consumption)',
-      options: ['text', 'json', 'jsonl'],
+      description: 'Output format: text (default) or jsonl (for AI agent consumption)',
+      options: ['text', 'jsonl'],
       default: 'text',
     }),
   }

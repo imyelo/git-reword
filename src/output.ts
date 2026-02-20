@@ -1,6 +1,6 @@
 import type { RewordResult } from './rebase/index.js'
 
-export type OutputFormat = 'text' | 'json' | 'jsonl'
+export type OutputFormat = 'text' | 'jsonl'
 
 export interface PreviewItem {
   commit: string

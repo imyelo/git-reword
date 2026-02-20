@@ -57,7 +57,6 @@ describe('MainCommand export', () => {
   it('should have all format options available', () => {
     const formatFlag = MainCommand.flags.format
     expect(formatFlag.options).toContain('text')
-    expect(formatFlag.options).toContain('json')
     expect(formatFlag.options).toContain('jsonl')
   })
 
