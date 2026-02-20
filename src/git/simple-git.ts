@@ -53,12 +53,19 @@ export async function getGitLog(git: SimpleGit, range: string): Promise<LogEntry
   )
 }
 
-// GitRawResult with exitCode - the actual return type varies by command
-interface GitRawResult {
-  exitCode: number
-}
-
+/**
+ * Check if the given commit is an ancestor of HEAD.
+ * Uses git merge-base --is-ancestor which exits with 0 if true, non-zero if false.
+ */
 export async function checkMergeBase(git: SimpleGit, commit: string): Promise<boolean> {
-  const result = (await git.raw(['merge-base', '--is-ancestor', commit, 'HEAD'])) as unknown as GitRawResult
-  return result.exitCode === 0
+  try {
+    // git merge-base --is-ancestor exits with 0 if commit is ancestor of HEAD
+    // exits with 1 if not an ancestor
+    // SimpleGit throws an error for non-zero exit codes by default
+    await git.raw(['merge-base', '--is-ancestor', commit, 'HEAD'])
+    return true
+  } catch {
+    // Non-zero exit code means commit is NOT an ancestor of HEAD
+    return false
+  }
 }
