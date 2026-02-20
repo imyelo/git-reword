@@ -158,3 +158,16 @@ describe('CLI generateRewrites', () => {
     expect(result).toBe(true)
   })
 })
+
+describe('--apply flag', () => {
+  it('should have apply flag defined', () => {
+    const applyFlag = MainCommand.flags.apply
+    expect(applyFlag).toBeDefined()
+    expect(applyFlag.char).toBe('a')
+  })
+
+  it('should have -a alias for apply flag', () => {
+    const applyFlag = MainCommand.flags.apply
+    expect(applyFlag.char).toBe('a')
+  })
+})
