@@ -2,6 +2,8 @@
 
 > 📝 AI-powered Git commit message rewriter.
 
+<img src="./assets/logo.png" width="360">
+
 ## Features
 
 - 📚 **Batch Rewording**: Reword multiple commits at once
