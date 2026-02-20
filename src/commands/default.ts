@@ -65,6 +65,7 @@ interface ParsedFlags {
   'skip-check': boolean
   config: boolean
   format?: 'text' | 'jsonl'
+  apply: boolean
 }
 
 class MainCommand extends Command {
@@ -122,6 +123,11 @@ class MainCommand extends Command {
       description: 'Output format: text (default) or jsonl (for AI agent consumption)',
       options: ['text', 'jsonl'],
       default: 'text',
+    }),
+    apply: Flags.boolean({
+      char: 'a',
+      description: 'Apply pre-confirmed rewrites from stdin (JSONL format). Skips AI generation.',
+      default: false,
     }),
   }
 
