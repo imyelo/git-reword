@@ -1,6 +1,7 @@
 import { Args, Command, Flags } from '@oclif/core'
 import inquirer from 'inquirer'
 import { generateCommitMessage, generateStagedMessage } from '../ai/generator.js'
+import { parseStdinRewrites, validateCommitsExist } from '../apply.js'
 import { type Config, hasConfig, loadConfig, saveConfig } from '../config.js'
 import { ErrorCode, GitRewordError, handleError } from '../error.js'
 import { checkBranchContains, checkUncommittedChanges, getCommits } from '../git/index.js'
@@ -165,6 +166,14 @@ class MainCommand extends Command {
         config = await loadConfig()
       } catch {
         throw new GitRewordError('Failed to load configuration.', ErrorCode.CONFIG_ERROR)
+      }
+
+      if (parsed.apply && parsed['dry-run']) {
+        throw new GitRewordError('--apply and --dry-run cannot be used together', ErrorCode.INVALID_ARGS)
+      }
+
+      if (parsed.apply) {
+        return this.runApply(parsed, config)
       }
 
       if (parsed.staged) {
@@ -373,6 +382,67 @@ class MainCommand extends Command {
         throw new GitRewordError('Commit cancelled by user.', ErrorCode.USER_INTERRUPT)
       }
     }
+  }
+
+  private async runApply(flags: ParsedFlags, _config: Config) {
+    // Read stdin
+    const stdin = await this.getStdin()
+
+    // Parse rewrites
+    const { rewrites, errors: parseErrors } = await parseStdinRewrites(stdin)
+
+    if (parseErrors.length > 0) {
+      for (const err of parseErrors) {
+        if (err.line) {
+          this.error(`Line ${err.line}: ${err.message}`)
+        } else {
+          this.error(err.message)
+        }
+      }
+      throw new GitRewordError('Failed to parse stdin input', ErrorCode.INVALID_ARGS)
+    }
+
+    // Validate commits exist
+    const validationErrors = await validateCommitsExist(rewrites)
+    if (validationErrors.length > 0) {
+      for (const err of validationErrors) {
+        this.error(err.message)
+      }
+      throw new GitRewordError('One or more commits not found in current branch', ErrorCode.INVALID_ARGS)
+    }
+
+    // Execute rebase
+    const results = await executeRewordRebase(
+      rewrites.map(r => ({ hash: r.commit, newMessage: r.newMessage, newBody: r.newBody || '' }))
+    )
+
+    // Output results
+    if (flags.format === 'jsonl') {
+      this.log(formatResultJsonl(results))
+    } else {
+      let successCount = 0
+      for (const result of results) {
+        if (result.success) {
+          this.log(`✓ ${result.commit.substring(0, 7)} rewrote`)
+          successCount++
+        } else {
+          this.log(`✗ ${result.commit.substring(0, 7)} failed: ${result.error}`)
+        }
+      }
+      this.log(`Done. ${successCount}/${results.length} commits rewrote`)
+    }
+  }
+
+  private async getStdin(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      let data = ''
+      process.stdin.setEncoding('utf8')
+      process.stdin.on('data', chunk => {
+        data += chunk
+      })
+      process.stdin.on('end', () => resolve(data))
+      process.stdin.on('error', reject)
+    })
   }
 }
 
