@@ -82,41 +82,50 @@ const CommitRow: React.FC<{
   focusedColumn: Version
   selectedVersion: Version
   spinnerFrame: number
-}> = ({ rewrite, isFocused, focusedColumn, selectedVersion, spinnerFrame }) => {
+  col2Width: number
+  col3Width: number
+}> = ({ rewrite, isFocused, focusedColumn, selectedVersion, spinnerFrame, col2Width, col3Width }) => {
   const isGenerated = !!rewrite.newMessage
 
   return (
-    <Box>
+    <Box flexDirection="row">
       {/* Hash column */}
       <Box
-        width={HASH_WIDTH}
-        flexShrink={0}
-        paddingX={1}
-        borderStyle="single"
-        borderLeft={false}
+        borderStyle="bold"
+        borderLeft={true}
+        borderRight={false}
         borderTop={false}
         borderBottom={false}
-        borderColor="gray"
+        width={HASH_WIDTH + 1}
+        flexShrink={0}
       >
-        <Text
-          bold
-          color={isFocused ? 'cyan' : 'white'}
+        <Box
+          width={HASH_WIDTH}
+          paddingX={1}
+          flexShrink={0}
         >
-          {rewrite.hash.substring(0, 7)}
-        </Text>
+          <Text
+            bold
+            color={isFocused ? 'cyan' : 'white'}
+          >
+            {rewrite.hash.substring(0, 7)}
+          </Text>
+        </Box>
       </Box>
 
       {/* New message column */}
       <Box
-        flexGrow={1}
-        flexBasis={0}
-        borderStyle="single"
-        borderLeft={false}
+        borderStyle="bold"
+        borderLeft={true}
+        borderRight={false}
         borderTop={false}
         borderBottom={false}
         borderColor="gray"
+        width={col2Width + 1}
+        flexShrink={0}
       >
         <MessageCell
+          width={col2Width}
           message={isGenerated ? (rewrite.newMessage ?? '') : ''}
           body={isGenerated ? rewrite.newBody : undefined}
           isExpanded={isFocused}
@@ -129,10 +138,17 @@ const CommitRow: React.FC<{
 
       {/* Old message column */}
       <Box
-        flexGrow={1}
-        flexBasis={0}
+        borderStyle="bold"
+        borderLeft={true}
+        borderRight={false}
+        borderTop={false}
+        borderBottom={false}
+        borderColor="gray"
+        width={col3Width + 1}
+        flexShrink={0}
       >
         <MessageCell
+          width={col3Width}
           message={rewrite.originalMessage}
           body={rewrite.originalBody}
           isExpanded={isFocused}
@@ -142,6 +158,15 @@ const CommitRow: React.FC<{
           spinnerFrame={spinnerFrame}
         />
       </Box>
+
+      {/* Outer right border */}
+      <Box
+        borderStyle="bold"
+        borderLeft={true}
+        borderRight={false}
+        borderTop={false}
+        borderBottom={false}
+      />
     </Box>
   )
 }
@@ -205,6 +230,20 @@ export const CommitSelector: React.FC<Props> = ({ rewrites, onSubmit, onCancel }
   const [spinnerFrame, setSpinnerFrame] = useState(0)
   const [uiMode, setUiMode] = useState<UIMode>('select')
   const [confirmFocused, setConfirmFocused] = useState(true) // true = Confirm, false = Cancel
+
+  // Set up dynamic column widths
+  const [columns, setColumns] = useState(stdout?.columns || 80)
+
+  useEffect(() => {
+    if (!stdout) {
+      return
+    }
+    const onResize = () => setColumns(stdout.columns)
+    stdout.on('resize', onResize)
+    return () => {
+      stdout.off('resize', onResize)
+    }
+  }, [stdout])
 
   // Track which commits have already been auto-switched to 'new'
   const autoSwitchedRef = useRef<Set<number>>(new Set())
@@ -301,12 +340,20 @@ export const CommitSelector: React.FC<Props> = ({ rewrites, onSubmit, onCancel }
     }
   })
 
-  // Viewport calculations
-  const statusLines = 6
-  const viewportHeight = Math.max(5, (stdout?.rows || 24) - statusLines)
+  // Viewport calculations have been removed in favor of dynamic shrinking.
 
   const selectedNewCount = selectedVersions.filter(v => v === 'new').length
   const generatedCount = rewrites.filter(r => r.newMessage).length
+
+  // Calculate table sections
+  const bordersWidth = 4 // Left, Right, 2 inner vertical rules
+  const fillableWidth = Math.max(10, columns - HASH_WIDTH - bordersWidth)
+  const col2Width = Math.floor(fillableWidth / 2)
+  const col3Width = fillableWidth - col2Width
+
+  const topBorder = `┏${'━'.repeat(HASH_WIDTH)}┳${'━'.repeat(col2Width)}┳${'━'.repeat(col3Width)}┓`
+  const sepBorder = `┣${'━'.repeat(HASH_WIDTH)}╋${'━'.repeat(col2Width)}╋${'━'.repeat(col3Width)}┫`
+  const botBorder = `┗${'━'.repeat(HASH_WIDTH)}┻${'━'.repeat(col2Width)}┻${'━'.repeat(col3Width)}┛`
 
   return (
     <Box
@@ -316,63 +363,81 @@ export const CommitSelector: React.FC<Props> = ({ rewrites, onSubmit, onCancel }
       <Text bold>Review Commit Messages</Text>
       <Text> </Text>
 
-      {/* Table with border */}
-      <Box
-        flexDirection="column"
-        borderStyle="single"
-        borderColor="gray"
-      >
+      {/* Table with perfectly styled border strings */}
+      <Box flexDirection="column">
+        {/* Top Border */}
+        <Text>{topBorder}</Text>
+
         {/* Header row */}
-        <Box
-          borderStyle="single"
-          borderLeft={false}
-          borderRight={false}
-          borderTop={false}
-          borderColor="gray"
-        >
+        <Box flexDirection="row">
           <Box
-            width={HASH_WIDTH}
+            borderStyle="bold"
+            borderLeft={true}
+            borderRight={false}
+            borderTop={false}
+            borderBottom={false}
+            width={HASH_WIDTH + 1}
             flexShrink={0}
-            paddingX={1}
-            borderStyle="single"
-            borderLeft={false}
-            borderTop={false}
-            borderBottom={false}
-            borderColor="gray"
           >
-            <Text
-              bold
-              dimColor
+            <Box
+              width={HASH_WIDTH}
+              paddingX={1}
+              flexShrink={0}
             >
-              hash
-            </Text>
+              <Text
+                bold
+                dimColor
+              >
+                hash
+              </Text>
+            </Box>
           </Box>
           <Box
-            flexGrow={1}
-            flexBasis={0}
-            paddingX={1}
-            borderStyle="single"
-            borderLeft={false}
+            borderStyle="bold"
+            borderLeft={true}
+            borderRight={false}
             borderTop={false}
             borderBottom={false}
-            borderColor="gray"
+            width={col2Width + 1}
+            flexShrink={0}
           >
-            <Text dimColor>suggested</Text>
+            <Box
+              width={col2Width}
+              paddingX={1}
+            >
+              <Text dimColor>suggested</Text>
+            </Box>
           </Box>
           <Box
-            flexGrow={1}
-            flexBasis={0}
-            paddingX={1}
+            borderStyle="bold"
+            borderLeft={true}
+            borderRight={false}
+            borderTop={false}
+            borderBottom={false}
+            width={col3Width + 1}
+            flexShrink={0}
           >
-            <Text dimColor>original</Text>
+            <Box
+              width={col3Width}
+              paddingX={1}
+            >
+              <Text dimColor>original</Text>
+            </Box>
           </Box>
+          <Box
+            borderStyle="bold"
+            borderLeft={true}
+            borderRight={false}
+            borderTop={false}
+            borderBottom={false}
+          />
         </Box>
 
+        {/* Middle Separator */}
+        <Text>{sepBorder}</Text>
+
         {/* Commit rows */}
-        <Box
-          flexDirection="column"
-          height={viewportHeight}
-        >
+        <Box flexDirection="column">
           {rewrites.map((rewrite, index) => (
             <CommitRow
               key={rewrite.hash}
@@ -381,9 +446,14 @@ export const CommitSelector: React.FC<Props> = ({ rewrites, onSubmit, onCancel }
               focusedColumn={focusedColumn}
               selectedVersion={selectedVersions[index]}
               spinnerFrame={spinnerFrame}
+              col2Width={col2Width}
+              col3Width={col3Width}
             />
           ))}
         </Box>
+
+        {/* Bottom Border */}
+        <Text>{botBorder}</Text>
       </Box>
 
       {/* Status bar */}
