@@ -134,9 +134,9 @@ The tool uses a two-phase approach for safe operation:
 ```bash
 # Phase 1: Confirmation (no rebase yet)
 git-reword --last 3
-# → Show commit-1: 原 → 新? [y/n/q]
-# → Show commit-2: 原 → 新? [y/n/q]
-# → Show commit-3: 原 → 新? [y/n/q]
+# → Show commit-1: old → new? [y/n/q]
+# → Show commit-2: old → new? [y/n/q]
+# → Show commit-3: old → new? [y/n/q]
 # All confirmed!
 
 # Phase 2: Execute rebase (all at once)
