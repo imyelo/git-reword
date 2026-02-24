@@ -5,10 +5,23 @@ export async function confirm(prompt: string): Promise<boolean> {
     input: process.stdin,
     output: process.stdout,
   })
+
   return new Promise(resolve => {
-    rl.question(prompt, answer => {
-      rl.close()
-      resolve(answer.toLowerCase().startsWith('y'))
-    })
+    const ask = (): void => {
+      rl.question(prompt, answer => {
+        const trimmed = answer.trim().toLowerCase()
+        if (trimmed === '' || trimmed === 'y' || trimmed.startsWith('y')) {
+          rl.close()
+          resolve(true)
+        } else if (trimmed === 'n') {
+          rl.close()
+          resolve(false)
+        } else {
+          // Invalid input, ask again
+          ask()
+        }
+      })
+    }
+    ask()
   })
 }
