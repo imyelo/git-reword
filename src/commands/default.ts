@@ -333,9 +333,9 @@ class MainCommand extends Command {
       return
     }
 
-    // Execute rebase
+    // Execute rebase — reverse to oldest-first since git log returns newest-first
     const results = await executeRewordRebase(
-      selectedRewrites.map(r => ({ hash: r.hash, newMessage: r.newMessage, newBody: r.newBody }))
+      [...selectedRewrites].reverse().map(r => ({ hash: r.hash, newMessage: r.newMessage, newBody: r.newBody }))
     )
 
     // Report results
@@ -411,9 +411,9 @@ class MainCommand extends Command {
       throw new GitRewordError('One or more commits not found in current branch', ErrorCode.INVALID_ARGS)
     }
 
-    // Execute rebase
+    // Execute rebase — reverse to oldest-first since preview JSONL is in newest-first order
     const results = await executeRewordRebase(
-      rewrites.map(r => ({ hash: r.commit, newMessage: r.newMessage, newBody: r.newBody || '' }))
+      [...rewrites].reverse().map(r => ({ hash: r.commit, newMessage: r.newMessage, newBody: r.newBody || '' }))
     )
 
     // Output results
