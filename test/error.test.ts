@@ -5,18 +5,6 @@ import { ErrorCode, GitRewordError, handleError } from '../src/error'
 vi.spyOn(console, 'error').mockImplementation(() => {})
 
 describe('error handling', () => {
-  it('should export GitRewordError class', () => {
-    expect(typeof GitRewordError).toBe('function')
-  })
-
-  it('should export ErrorCode enum', () => {
-    expect(typeof ErrorCode).toBe('object')
-  })
-
-  it('should export handleError function', () => {
-    expect(typeof handleError).toBe('function')
-  })
-
   describe('handleError', () => {
     it('should return CONFIG_ERROR for config errors', () => {
       const error = new GitRewordError('config error', ErrorCode.CONFIG_ERROR)
