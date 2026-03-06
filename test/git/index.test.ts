@@ -1,187 +1,95 @@
-import { describe, expect, it } from 'vitest'
+import { exec as execSync } from 'node:child_process'
+import { promisify } from 'node:util'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { checkBranchContains, checkUncommittedChanges, getCommits } from '../../src/git'
 import { cleanupTempRepo, createTempGitRepo } from '../helpers/git'
 
+const execAsync = promisify(execSync)
+
+async function addCommit(cwd: string, message: string) {
+  await execAsync(`echo "${message}" >> file.txt && git add file.txt && git commit -m "${message}"`, { cwd })
+}
+
 describe('git operations', () => {
+  let tempDir: string
+
+  beforeEach(async () => {
+    tempDir = await createTempGitRepo()
+  })
+
+  afterEach(async () => {
+    await cleanupTempRepo(tempDir)
+  })
+
   describe('getCommits', () => {
-    it('should export getCommits function', () => {
-      expect(typeof getCommits).toBe('function')
+    it('should get all commits from repo', async () => {
+      const commits = await getCommits({}, tempDir)
+      expect(commits.length).toBeGreaterThanOrEqual(1)
+      expect(commits[0]?.hash).toBeDefined()
+      expect(commits[0]?.message).toBe('initial commit')
     })
 
-    it('should get commits from temp repo', async () => {
-      const tempDir = await createTempGitRepo()
-      try {
-        const commits = await getCommits({}, tempDir)
-        expect(commits.length).toBeGreaterThanOrEqual(1)
-        expect(commits[0]?.hash).toBeDefined()
-        expect(commits[0]?.message).toBe('initial commit')
-      } finally {
-        await cleanupTempRepo(tempDir)
-      }
+    it('should get last N commits in newest-first order', async () => {
+      await addCommit(tempDir, 'feat: feature 1')
+      await addCommit(tempDir, 'feat: feature 2')
+      await addCommit(tempDir, 'feat: feature 3')
+
+      const commits = await getCommits({ last: 2 }, tempDir)
+      expect(commits).toHaveLength(2)
+      expect(commits[0]?.message).toBe('feat: feature 3')
+      expect(commits[1]?.message).toBe('feat: feature 2')
     })
 
-    it('should get last N commits', async () => {
-      const tempDir = await createTempGitRepo()
-      try {
-        const { exec } = await import('node:child_process')
-        const { promisify } = await import('node:util')
-        const execAsync = promisify(exec)
-        await execAsync('echo "feat1" >> file.txt && git add file.txt && git commit -m "feat: feature 1"', {
-          cwd: tempDir,
-        })
-        await execAsync('echo "feat2" >> file.txt && git add file.txt && git commit -m "feat: feature 2"', {
-          cwd: tempDir,
-        })
-        await execAsync('echo "feat3" >> file.txt && git add file.txt && git commit -m "feat: feature 3"', {
-          cwd: tempDir,
-        })
+    it('should get commits after a specific ref', async () => {
+      await addCommit(tempDir, 'feat: feature 1')
+      const sinceHash = (await execAsync('git rev-parse HEAD', { cwd: tempDir })).stdout.trim()
+      await addCommit(tempDir, 'feat: feature 2')
 
-        const commits = await getCommits({ last: 2 }, tempDir)
-        expect(commits).toHaveLength(2)
-        // Most recent first
-        expect(commits[0]?.message).toBe('feat: feature 3')
-        expect(commits[1]?.message).toBe('feat: feature 2')
-      } finally {
-        await cleanupTempRepo(tempDir)
-      }
+      const commits = await getCommits({ since: sinceHash }, tempDir)
+      expect(commits).toHaveLength(1)
+      expect(commits[0]?.message).toBe('feat: feature 2')
     })
 
-    it('should get commits since a specific commit', async () => {
-      const tempDir = await createTempGitRepo()
-      try {
-        const { exec } = await import('node:child_process')
-        const { promisify } = await import('node:util')
-        const execAsync = promisify(exec)
-        await execAsync('echo "feat1" >> file.txt && git add file.txt && git commit -m "feat: feature 1"', {
-          cwd: tempDir,
-        })
-        const sinceHash = (await execAsync('git rev-parse HEAD', { cwd: tempDir })).stdout.trim()
-        await execAsync('echo "feat2" >> file.txt && git add file.txt && git commit -m "feat: feature 2"', {
-          cwd: tempDir,
-        })
+    it('should get commits in a hash range', async () => {
+      await addCommit(tempDir, 'feat: feature 1')
+      await addCommit(tempDir, 'feat: feature 2')
+      const from = (await execAsync('git rev-parse HEAD~1', { cwd: tempDir })).stdout.trim()
+      const to = (await execAsync('git rev-parse HEAD', { cwd: tempDir })).stdout.trim()
 
-        const commits = await getCommits({ since: sinceHash }, tempDir)
-        expect(commits.length).toBeGreaterThanOrEqual(1)
-        expect(commits[commits.length - 1]?.message).toBe('feat: feature 2')
-      } finally {
-        await cleanupTempRepo(tempDir)
-      }
-    })
-
-    it('should get commits in a range', async () => {
-      const tempDir = await createTempGitRepo()
-      try {
-        const { exec } = await import('node:child_process')
-        const { promisify } = await import('node:util')
-        const execAsync = promisify(exec)
-        await execAsync('echo "feat1" >> file.txt && git add file.txt && git commit -m "feat: feature 1"', {
-          cwd: tempDir,
-        })
-        await execAsync('echo "feat2" >> file.txt && git add file.txt && git commit -m "feat: feature 2"', {
-          cwd: tempDir,
-        })
-        const hash1 = (await execAsync('git rev-parse HEAD~1', { cwd: tempDir })).stdout.trim()
-        const hash2 = (await execAsync('git rev-parse HEAD', { cwd: tempDir })).stdout.trim()
-
-        const commits = await getCommits({ range: `${hash1}..${hash2}` }, tempDir)
-        expect(commits).toHaveLength(1)
-        expect(commits[0]?.message).toBe('feat: feature 2')
-      } finally {
-        await cleanupTempRepo(tempDir)
-      }
+      const commits = await getCommits({ range: `${from}..${to}` }, tempDir)
+      expect(commits).toHaveLength(1)
+      expect(commits[0]?.message).toBe('feat: feature 2')
     })
   })
 
   describe('checkUncommittedChanges', () => {
-    it('should export checkUncommittedChanges function', () => {
-      expect(typeof checkUncommittedChanges).toBe('function')
-    })
-
-    it('should return false when no uncommitted changes', async () => {
-      const tempDir = await createTempGitRepo()
-      try {
-        const hasChanges = await checkUncommittedChanges(tempDir)
-        expect(hasChanges).toBe(false)
-      } finally {
-        await cleanupTempRepo(tempDir)
-      }
+    it('should return false when working tree is clean', async () => {
+      expect(await checkUncommittedChanges(tempDir)).toBe(false)
     })
 
     it('should return true when there are uncommitted changes', async () => {
-      const tempDir = await createTempGitRepo()
-      try {
-        const { exec } = await import('node:child_process')
-        const { promisify } = await import('node:util')
-        const execAsync = promisify(exec)
-        await execAsync('echo "new content" >> file.txt', { cwd: tempDir })
-
-        const hasChanges = await checkUncommittedChanges(tempDir)
-        expect(hasChanges).toBe(true)
-      } finally {
-        await cleanupTempRepo(tempDir)
-      }
+      await execAsync('echo "new content" >> file.txt', { cwd: tempDir })
+      expect(await checkUncommittedChanges(tempDir)).toBe(true)
     })
   })
 
   describe('checkBranchContains', () => {
-    it('should export checkBranchContains function', () => {
-      expect(typeof checkBranchContains).toBe('function')
+    it('should return true when commit is on current branch', async () => {
+      const hash = (await execAsync('git rev-parse HEAD', { cwd: tempDir })).stdout.trim()
+      expect(await checkBranchContains(hash, tempDir)).toBe(true)
     })
 
-    it('should return true when branch contains commit', async () => {
-      const tempDir = await createTempGitRepo()
-      try {
-        const { exec } = await import('node:child_process')
-        const { promisify } = await import('node:util')
-        const execAsync = promisify(exec)
-        const hash = (await execAsync('git rev-parse HEAD', { cwd: tempDir })).stdout.trim()
-
-        const contains = await checkBranchContains(hash, tempDir)
-        expect(contains).toBe(true)
-      } finally {
-        await cleanupTempRepo(tempDir)
-      }
+    it('should return false for a non-existent hash', async () => {
+      expect(await checkBranchContains('a'.repeat(40), tempDir)).toBe(false)
     })
 
-    it('should return false when branch does not contain commit', async () => {
-      const tempDir = await createTempGitRepo()
-      try {
-        // Use a non-existent hash that will trigger the error handling
-        const fakeHash = 'a'.repeat(40)
+    it('should return false when commit exists only on another branch', async () => {
+      await execAsync('git checkout -b feature', { cwd: tempDir })
+      await addCommit(tempDir, 'feat: feature commit')
+      const featureHash = (await execAsync('git rev-parse HEAD', { cwd: tempDir })).stdout.trim()
+      await execAsync('git checkout -', { cwd: tempDir })
 
-        const contains = await checkBranchContains(fakeHash, tempDir)
-        expect(contains).toBe(false)
-      } finally {
-        await cleanupTempRepo(tempDir)
-      }
-    })
-
-    it('should return false when commit exists in another branch but not current branch', async () => {
-      const tempDir = await createTempGitRepo()
-      try {
-        const { exec } = await import('node:child_process')
-        const { promisify } = await import('node:util')
-        const execAsync = promisify(exec)
-
-        // Create a commit on feature branch
-        await execAsync('git checkout -b feature', { cwd: tempDir })
-        await execAsync(
-          'echo "feature content" >> file.txt && git add file.txt && git commit -m "feat: feature commit"',
-          {
-            cwd: tempDir,
-          }
-        )
-        const featureCommitHash = (await execAsync('git rev-parse HEAD', { cwd: tempDir })).stdout.trim()
-
-        // Switch back to main branch (temp repo's default branch)
-        await execAsync('git checkout main', { cwd: tempDir })
-
-        // The commit exists in the repo but not in the current branch
-        const contains = await checkBranchContains(featureCommitHash, tempDir)
-        expect(contains).toBe(false)
-      } finally {
-        await cleanupTempRepo(tempDir)
-      }
+      expect(await checkBranchContains(featureHash, tempDir)).toBe(false)
     })
   })
 })
