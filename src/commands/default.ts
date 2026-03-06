@@ -65,6 +65,7 @@ interface ParsedFlags {
   last?: number
   since?: string
   'skip-check': boolean
+  cwd?: string
   config: boolean
   format?: 'text' | 'jsonl'
   apply: boolean
@@ -119,6 +120,11 @@ class MainCommand extends Command {
       char: 'k',
       description: 'Skip uncommitted changes check (for debugging)',
       default: false,
+    }),
+    cwd: Flags.string({
+      char: 'C',
+      description: 'Working directory for git operations',
+      hidden: true,
     }),
     config: Flags.boolean({
       char: 'c',
@@ -251,6 +257,8 @@ class MainCommand extends Command {
   }
 
   private async runReword(ref: string | undefined, flags: ParsedFlags, config: Config) {
+    const cwd = flags.cwd
+
     // Determine if ref is a range or single commit
     let options: { commit?: string; range?: string; last?: number; since?: string } = {}
     if (ref) {
@@ -269,7 +277,7 @@ class MainCommand extends Command {
 
     // Pre-flight checks (skip with --skip-check for debugging)
     if (!flags['skip-check']) {
-      if (await checkUncommittedChanges()) {
+      if (await checkUncommittedChanges(cwd)) {
         throw new GitRewordError(
           'Uncommitted changes detected. Please commit or stash them first.',
           ErrorCode.GIT_ERROR
@@ -284,11 +292,11 @@ class MainCommand extends Command {
       }
     }
 
-    const commits = await getCommits(options)
+    const commits = await getCommits(options, cwd)
 
     // Validate commits are on current branch
     if (options.commit) {
-      if (!(await checkBranchContains(options.commit))) {
+      if (!(await checkBranchContains(options.commit, cwd))) {
         throw new GitRewordError(
           `Commit '${options.commit}' is not on the current branch. Please checkout the correct branch first.`,
           ErrorCode.INVALID_ARGS
@@ -296,14 +304,14 @@ class MainCommand extends Command {
       }
     } else if (options.range) {
       const [from, to] = options.range.split('..')
-      if (!(await checkBranchContains(from)) || !(await checkBranchContains(to))) {
+      if (!(await checkBranchContains(from, cwd)) || !(await checkBranchContains(to, cwd))) {
         throw new GitRewordError(
           `One or more commits in range '${options.range}' are not on the current branch. Please checkout the correct branch first.`,
           ErrorCode.INVALID_ARGS
         )
       }
     } else if (options.since) {
-      if (!(await checkBranchContains(options.since))) {
+      if (!(await checkBranchContains(options.since, cwd))) {
         throw new GitRewordError(
           `Commit '${options.since}' is not on the current branch. Please checkout the correct branch first.`,
           ErrorCode.INVALID_ARGS
@@ -346,7 +354,8 @@ class MainCommand extends Command {
 
     // Execute rebase — reverse to oldest-first since git log returns newest-first
     const results = await executeRewordRebase(
-      [...selectedRewrites].reverse().map(r => ({ hash: r.hash, newMessage: r.newMessage, newBody: r.newBody }))
+      [...selectedRewrites].reverse().map(r => ({ hash: r.hash, newMessage: r.newMessage, newBody: r.newBody })),
+      cwd
     )
 
     // Report results
@@ -367,7 +376,8 @@ class MainCommand extends Command {
   }
 
   private async runStaged(flags: ParsedFlags, config: Config) {
-    const git = await getSimpleGit()
+    const cwd = flags.cwd
+    const git = await getSimpleGit(cwd)
 
     const status = await git.status()
 
