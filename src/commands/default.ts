@@ -56,6 +56,7 @@ async function generateRewrites(commits: Commit[], flags: ParsedFlags, config: C
 
 // Flags interface for runtime parsed values (after oclif processing)
 interface ParsedFlags {
+  version: boolean
   staged: boolean
   'dry-run': boolean
   yes: boolean
@@ -80,6 +81,11 @@ class MainCommand extends Command {
   }
 
   static flags = {
+    version: Flags.boolean({
+      char: 'v',
+      description: 'Show version',
+      default: false,
+    }),
     staged: Flags.boolean({
       char: 's',
       description: 'Generate commit message for staged changes',
@@ -137,6 +143,11 @@ class MainCommand extends Command {
     const parsed = flags as ParsedFlags
 
     try {
+      if (parsed.version) {
+        this.log(this.config.version)
+        return
+      }
+
       if (parsed.config) {
         return this.runConfig()
       }
