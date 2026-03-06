@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import MainCommand, { generateRewrites } from '../../src/commands/default'
 import type { Config } from '../../src/config'
 import { checkBranchContains, checkUncommittedChanges, getCommits } from '../../src/git/index'
@@ -34,6 +34,25 @@ vi.mock('ai', async () => {
     generateObject: vi.fn(),
   }
 })
+
+vi.mock('../../src/config.js', () => ({
+  hasConfig: vi.fn(),
+  loadConfig: vi.fn(),
+  saveConfig: vi.fn(),
+}))
+
+vi.mock('../../src/preflight.js', () => ({
+  checkFastForward: vi.fn(),
+  validateRewordOperation: vi.fn(),
+}))
+
+vi.mock('../../src/rebase/index.js', () => ({
+  executeRewordRebase: vi.fn(),
+}))
+
+vi.mock('inquirer', () => ({
+  default: { prompt: vi.fn() },
+}))
 
 describe('generateRewrites export', () => {
   it('should export generateRewrites function', () => {
@@ -223,5 +242,141 @@ describe('--apply flag', () => {
   it('should have -a alias for apply flag', () => {
     const applyFlag = MainCommand.flags.apply
     expect(applyFlag.char).toBe('a')
+  })
+})
+
+describe('MainCommand.run() - command dispatch', () => {
+  let logs: string[]
+  let logSpy: ReturnType<typeof vi.spyOn>
+
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    logs = []
+    const { Command } = await import('@oclif/core')
+    logSpy = vi.spyOn(Command.prototype, 'log').mockImplementation((msg?: string) => {
+      logs.push(String(msg ?? ''))
+    })
+
+    const { hasConfig, loadConfig } = await import('../../src/config.js')
+    vi.mocked(hasConfig).mockResolvedValue(true)
+    vi.mocked(loadConfig).mockResolvedValue({ provider: 'openai', model: 'gpt-4o' })
+
+    const { checkUncommittedChanges, checkBranchContains } = await import('../../src/git/index.js')
+    vi.mocked(checkUncommittedChanges).mockResolvedValue(false)
+    vi.mocked(checkBranchContains).mockResolvedValue(true)
+
+    const { checkFastForward } = await import('../../src/preflight.js')
+    vi.mocked(checkFastForward).mockResolvedValue(true)
+  })
+
+  afterEach(() => {
+    logSpy.mockRestore()
+  })
+
+  it('should error when --apply and --dry-run used together', async () => {
+    const err = await MainCommand.run(['--apply', '--dry-run'], import.meta.url).catch(e => e)
+    expect(err?.oclif?.exit).toBeGreaterThan(0)
+  })
+
+  it('should error when uncommitted changes exist', async () => {
+    const { checkUncommittedChanges } = await import('../../src/git/index.js')
+    vi.mocked(checkUncommittedChanges).mockResolvedValue(true)
+    const err = await MainCommand.run(['--last', '1'], import.meta.url).catch(e => e)
+    expect(err?.message).toContain('Uncommitted changes')
+  })
+
+  it('should error when fast-forward check fails', async () => {
+    const { checkFastForward } = await import('../../src/preflight.js')
+    vi.mocked(checkFastForward).mockResolvedValue(false)
+    const err = await MainCommand.run(['--last', '1'], import.meta.url).catch(e => e)
+    expect(err?.message).toContain('fast-forward')
+  })
+
+  it('should show text dry-run preview with original and new messages', async () => {
+    const { getCommits } = await import('../../src/git/index.js')
+    vi.mocked(getCommits).mockResolvedValue([
+      { hash: 'abc1234567890', shortHash: 'abc1234', message: 'fix: old message', body: '' },
+    ])
+    const { generateObject } = await import('ai')
+    vi.mocked(generateObject as ReturnType<typeof vi.fn>).mockResolvedValue({
+      object: { subject: 'fix: new message', body: '' },
+    })
+
+    await MainCommand.run(['--last', '1', '--yes', '--dry-run', '--skip-check'], import.meta.url)
+
+    const output = logs.join('\n')
+    expect(output).toContain('Dry Run')
+    expect(output).toContain('fix: new message')
+    expect(output).toContain('fix: old message')
+  })
+
+  it('should output JSONL dry-run preview', async () => {
+    const { getCommits } = await import('../../src/git/index.js')
+    vi.mocked(getCommits).mockResolvedValue([
+      { hash: 'abc1234567890', shortHash: 'abc1234', message: 'fix: old message', body: '' },
+    ])
+    const { generateObject } = await import('ai')
+    vi.mocked(generateObject as ReturnType<typeof vi.fn>).mockResolvedValue({
+      object: { subject: 'fix: new message', body: '' },
+    })
+
+    await MainCommand.run(['--last', '1', '--yes', '--dry-run', '--skip-check', '--format', 'jsonl'], import.meta.url)
+
+    const jsonLine = logs.find(l => l.startsWith('{'))
+    expect(jsonLine).toBeDefined()
+    const parsed = JSON.parse(jsonLine ?? '{}')
+    expect(parsed.commit).toBe('abc1234567890')
+    expect(parsed.newMessage).toBe('fix: new message')
+  })
+
+  it('should reword commits and report text results', async () => {
+    const { getCommits } = await import('../../src/git/index.js')
+    vi.mocked(getCommits).mockResolvedValue([
+      { hash: 'abc1234567890', shortHash: 'abc1234', message: 'fix: old', body: '' },
+    ])
+    const { generateObject } = await import('ai')
+    vi.mocked(generateObject as ReturnType<typeof vi.fn>).mockResolvedValue({
+      object: { subject: 'fix: new', body: '' },
+    })
+    const { executeRewordRebase } = await import('../../src/rebase/index.js')
+    vi.mocked(executeRewordRebase).mockResolvedValue([
+      { success: true, commit: 'abc1234567890', originalMessage: 'fix: old', newMessage: 'fix: new', newBody: '' },
+    ])
+
+    await MainCommand.run(['--last', '1', '--yes', '--skip-check'], import.meta.url)
+
+    const output = logs.join('\n')
+    expect(output).toContain('✓')
+    expect(output).toContain('1/1 commits rewrote')
+  })
+
+  it('should output JSONL results after reword', async () => {
+    const { getCommits } = await import('../../src/git/index.js')
+    vi.mocked(getCommits).mockResolvedValue([
+      { hash: 'abc1234567890', shortHash: 'abc1234', message: 'fix: old', body: '' },
+    ])
+    const { generateObject } = await import('ai')
+    vi.mocked(generateObject as ReturnType<typeof vi.fn>).mockResolvedValue({
+      object: { subject: 'fix: new', body: '' },
+    })
+    const { executeRewordRebase } = await import('../../src/rebase/index.js')
+    vi.mocked(executeRewordRebase).mockResolvedValue([
+      { success: true, commit: 'abc1234567890', originalMessage: 'fix: old', newMessage: 'fix: new', newBody: '' },
+    ])
+
+    await MainCommand.run(['--last', '1', '--yes', '--skip-check', '--format', 'jsonl'], import.meta.url)
+
+    const jsonLine = logs.find(l => l.startsWith('{'))
+    expect(jsonLine).toBeDefined()
+    const parsed = JSON.parse(jsonLine ?? '{}')
+    expect(parsed.success).toBe(true)
+    expect(parsed.commit).toBe('abc1234567890')
+    expect(parsed.newMessage).toBe('fix: new')
+  })
+
+  it('should error when no staged changes in --staged mode', async () => {
+    // getSimpleGit mock returns staged: [] by default
+    const err = await MainCommand.run(['--staged'], import.meta.url).catch(e => e)
+    expect(err?.message).toContain('No staged changes')
   })
 })
