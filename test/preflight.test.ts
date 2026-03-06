@@ -1,17 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { checkFastForward } from '../src/preflight'
+import { checkFastForward, validateRewordOperation } from '../src/preflight'
 
-// Mock the entire simple-git module including checkMergeBase
 vi.mock('../src/git/simple-git', () => ({
   getSimpleGit: vi.fn(() =>
     Promise.resolve({
       raw: vi.fn(),
+      status: vi.fn().mockResolvedValue({ files: [] }),
     })
   ),
   checkMergeBase: vi.fn(),
 }))
 
-import { checkMergeBase } from '../src/git/simple-git'
+import { checkMergeBase, getSimpleGit } from '../src/git/simple-git'
 
 describe('checkFastForward', () => {
   beforeEach(() => {
@@ -49,5 +49,55 @@ describe('checkFastForward', () => {
   it('should return true without calling checkMergeBase when no option given', async () => {
     expect(await checkFastForward({})).toBe(true)
     expect(checkMergeBase).not.toHaveBeenCalled()
+  })
+})
+
+describe('validateRewordOperation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should return valid when working tree is clean and fast-forward ok', async () => {
+    vi.mocked(checkMergeBase).mockResolvedValue(true)
+
+    const result = await validateRewordOperation({ last: 1 })
+
+    expect(result.valid).toBe(true)
+    expect(result.errors).toHaveLength(0)
+  })
+
+  it('should return error when uncommitted changes exist', async () => {
+    vi.mocked(getSimpleGit).mockResolvedValueOnce({
+      raw: vi.fn(),
+      status: vi.fn().mockResolvedValue({ files: ['dirty.ts'] }),
+    } as never)
+    vi.mocked(checkMergeBase).mockResolvedValue(true)
+
+    const result = await validateRewordOperation({ last: 1 })
+
+    expect(result.valid).toBe(false)
+    expect(result.errors[0]).toContain('Uncommitted changes')
+  })
+
+  it('should return error when fast-forward check fails', async () => {
+    vi.mocked(checkMergeBase).mockResolvedValue(false)
+
+    const result = await validateRewordOperation({ last: 1 })
+
+    expect(result.valid).toBe(false)
+    expect(result.errors[0]).toContain('Cannot fast-forward')
+  })
+
+  it('should collect both errors when uncommitted changes and fast-forward both fail', async () => {
+    vi.mocked(getSimpleGit).mockResolvedValueOnce({
+      raw: vi.fn(),
+      status: vi.fn().mockResolvedValue({ files: ['dirty.ts'] }),
+    } as never)
+    vi.mocked(checkMergeBase).mockResolvedValue(false)
+
+    const result = await validateRewordOperation({ last: 1 })
+
+    expect(result.valid).toBe(false)
+    expect(result.errors).toHaveLength(2)
   })
 })

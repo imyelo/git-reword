@@ -56,6 +56,23 @@ describe('parseStdinRewrites', () => {
     expect(errors).toHaveLength(0)
     expect(rewrites[0].newBody).toBe('detailed explanation')
   })
+
+  it('should collect both rewrites and errors from mixed input', async () => {
+    const input = '{"commit":"abc123","newMessage":"fix: resolved"}\n{"invalid json"'
+    const { rewrites, errors } = await parseStdinRewrites(input)
+
+    expect(rewrites).toHaveLength(1)
+    expect(errors).toHaveLength(1)
+    expect(errors[0].type).toBe('parse')
+  })
+
+  it('should treat whitespace-only input as empty', async () => {
+    const { rewrites, errors } = await parseStdinRewrites('   \n  \n  ')
+
+    expect(errors).toHaveLength(1)
+    expect(errors[0].type).toBe('empty')
+    expect(rewrites).toHaveLength(0)
+  })
 })
 
 describe('validateCommitsExist', () => {

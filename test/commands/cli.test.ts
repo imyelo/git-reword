@@ -54,6 +54,15 @@ vi.mock('inquirer', () => ({
   default: { prompt: vi.fn() },
 }))
 
+vi.mock('../../src/apply.js', () => ({
+  parseStdinRewrites: vi.fn(),
+  validateCommitsExist: vi.fn(),
+}))
+
+vi.mock('../../src/ui.js', () => ({
+  confirm: vi.fn(),
+}))
+
 describe('generateRewrites export', () => {
   it('should export generateRewrites function', () => {
     expect(typeof generateRewrites).toBe('function')
@@ -378,5 +387,44 @@ describe('MainCommand.run() - command dispatch', () => {
     // getSimpleGit mock returns staged: [] by default
     const err = await MainCommand.run(['--staged'], import.meta.url).catch(e => e)
     expect(err?.message).toContain('No staged changes')
+  })
+
+  it('should suggest staged commit message with --yes', async () => {
+    vi.mocked(getSimpleGit).mockResolvedValueOnce({
+      status: vi.fn().mockResolvedValue({ staged: ['src/file.ts'] }),
+      diff: vi.fn().mockResolvedValue('diff --git a/src/file.ts b/src/file.ts\n+export const x = 1'),
+    } as never)
+    const { generateObject } = await import('ai')
+    vi.mocked(generateObject as ReturnType<typeof vi.fn>).mockResolvedValue({
+      object: { subject: 'feat: add x export', body: '' },
+    })
+
+    await MainCommand.run(['--staged', '--yes'], import.meta.url)
+
+    expect(logs.join('\n')).toContain('feat: add x export')
+  })
+
+  it('should apply rewrites from stdin and report results', async () => {
+    const proto = MainCommand.prototype as unknown as { getStdin: () => Promise<string> }
+    const getStdinSpy = vi
+      .spyOn(proto, 'getStdin')
+      .mockResolvedValue('{"commit":"abc1234567890","newMessage":"fix: applied"}')
+    const { parseStdinRewrites, validateCommitsExist } = await import('../../src/apply.js')
+    vi.mocked(parseStdinRewrites).mockResolvedValue({
+      rewrites: [{ commit: 'abc1234567890', newMessage: 'fix: applied' }],
+      errors: [],
+    })
+    vi.mocked(validateCommitsExist).mockResolvedValue([])
+    const { executeRewordRebase } = await import('../../src/rebase/index.js')
+    vi.mocked(executeRewordRebase).mockResolvedValue([
+      { success: true, commit: 'abc1234567890', originalMessage: 'fix: old', newMessage: 'fix: applied', newBody: '' },
+    ])
+
+    await MainCommand.run(['--apply'], import.meta.url)
+
+    const output = logs.join('\n')
+    expect(output).toContain('✓')
+    expect(output).toContain('1/1 commits rewrote')
+    getStdinSpy.mockRestore()
   })
 })
